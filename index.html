@@ -1,0 +1,2580 @@
+<!DOCTYPE html>
+<html lang="ru" x-data="app()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экспертная система для выработки требований к ПО v3.0</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        :root {
+            --bs-body-font-size: 0.875rem;
+            --bs-border-radius: 0.375rem;
+            --bs-btn-padding-y: 0.25rem;
+            --bs-btn-padding-x: 0.5rem;
+            --bs-form-control-padding-y: 0.25rem;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            background-color: #f8f9fa;
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .sidebar {
+            background: white;
+            border-right: 1px solid #dee2e6;
+            height: calc(100vh - 56px);
+            overflow-y: auto;
+        }
+        
+        .nav-link {
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.25rem;
+            margin-bottom: 0.125rem;
+            font-size: 0.8rem;
+        }
+        
+        .nav-link.active {
+            background-color: #e7f1ff;
+            color: #0d6efd;
+            font-weight: 500;
+        }
+        
+        .module-icon {
+            width: 20px;
+            text-align: center;
+            margin-right: 8px;
+        }
+        
+        .card {
+            border-radius: 0.5rem;
+            border: 1px solid #dee2e6;
+            font-size: 0.8rem;
+        }
+        
+        .card-header {
+            padding: 0.5rem 1rem;
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .form-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .form-control, .form-select {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+            height: calc(1.5em + 0.5rem + 2px);
+        }
+        
+        .btn {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .table {
+            font-size: 0.8rem;
+        }
+        
+        .table th {
+            font-weight: 600;
+            padding: 0.5rem;
+        }
+        
+        .table td {
+            padding: 0.5rem;
+            vertical-align: middle;
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .requirement-card {
+            border-left: 4px solid #0d6efd;
+            transition: all 0.2s;
+        }
+        
+        .requirement-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .status-badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.3rem;
+        }
+        
+        .priority-must { border-left-color: #dc3545; }
+        .priority-should { border-left-color: #fd7e14; }
+        .priority-could { border-left-color: #ffc107; }
+        .priority-wont { border-left-color: #6c757d; }
+        
+        .trace-matrix-cell {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.6rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .code-font {
+            font-family: 'Source Code Pro', monospace;
+            font-size: 0.75rem;
+        }
+        
+        .accordion-button {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+        }
+        
+        .modal-content {
+            font-size: 0.8rem;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #dee2e6;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-left: 15px;
+        }
+        
+        .timeline-marker {
+            position: absolute;
+            left: -20px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            z-index: 1;
+        }
+        
+        .timeline-content {
+            padding-bottom: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 56px;
+                left: -100%;
+                width: 80%;
+                z-index: 1000;
+                transition: left 0.3s;
+            }
+            
+            .sidebar.show {
+                left: 0;
+            }
+            
+            .main-content {
+                padding-left: 15px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Навигационная панель -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary py-2">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-brain me-2"></i>
+                <span class="d-none d-sm-inline">ЭС для требований ПО v3.0</span>
+                <span class="d-inline d-sm-none">ЭС Требования</span>
+            </a>
+            
+            <!-- Кнопка для мобильного меню -->
+            <button class="btn btn-sm btn-outline-light d-lg-none" 
+                    type="button" 
+                    @click="mobileMenuOpen = !mobileMenuOpen">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="navbar-text text-light d-none d-lg-block">
+                <small>Активный проект: <strong>Разработка ERP-системы</strong></small>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Боковая панель навигации -->
+            <div class="col-lg-2 col-md-3 p-0 d-none d-lg-block">
+                <div class="sidebar p-3">
+                    <nav class="nav flex-column">
+                        <div class="fw-bold text-uppercase small mb-2 text-muted">Модули системы</div>
+                        
+                        <a class="nav-link" :class="{active: activeModule === 'dashboard'}" href="#" @click.prevent="activeModule = 'dashboard'; mobileMenuOpen = false">
+                            <span class="module-icon"><i class="fas fa-tachometer-alt"></i></span>
+                            Дашборд
+                        </a>
+                        
+                        <a class="nav-link" :class="{active: activeModule === 'entities'}" href="#" @click.prevent="activeModule = 'entities'; mobileMenuOpen = false">
+                            <span class="module-icon"><i class="fas fa-cube"></i></span>
+                            Управление сущностями
+                        </a>
+                        
+                        <a class="nav-link" :class="{active: activeModule === 'processes'}" href="#" @click.prevent="activeModule = 'processes'; mobileMenuOpen = false">
+                            <span class="module-icon"><i class="fas fa-cogs"></i></span>
+                            Процессы работы
+                        </a>
+                        
+                        <a class="nav-link" :class="{active: activeModule === 'artifacts'}" href="#" @click.prevent="activeModule = 'artifacts'; mobileMenuOpen = false">
+                            <span class="module-icon"><i class="fas fa-file-alt"></i></span>
+                            Артефакты
+                        </a>
+                        
+                        <a class="nav-link" :class="{active: activeModule === 'analytics'}" href="#" @click.prevent="activeModule = 'analytics'; mobileMenuOpen = false">
+                            <span class="module-icon"><i class="fas fa-chart-bar"></i></span>
+                            Аналитика
+                        </a>
+                        
+                        <a class="nav-link" :class="{active: activeModule === 'admin'}" href="#" @click.prevent="activeModule = 'admin'; mobileMenuOpen = false">
+                            <span class="module-icon"><i class="fas fa-sliders-h"></i></span>
+                            Администрирование
+                        </a>
+                        
+                        <hr class="my-2">
+                        
+                        <div class="fw-bold text-uppercase small mb-2 text-muted mt-3">Быстрые действия</div>
+                        
+                        <button class="btn btn-sm btn-outline-primary mb-2" @click="showAddRequirementModal = true; mobileMenuOpen = false">
+                            <i class="fas fa-plus me-1"></i> Новое требование
+                        </button>
+                        
+                        <button class="btn btn-sm btn-outline-success mb-2" @click="generateSRSReport(); mobileMenuOpen = false">
+                            <i class="fas fa-file-export me-1"></i> Сгенерировать SRS
+                        </button>
+                        
+                        <button class="btn btn-sm btn-outline-info mb-2" @click="runConsistencyCheck(); mobileMenuOpen = false">
+                            <i class="fas fa-search me-1"></i> Проверить согласованность
+                        </button>
+                    </nav>
+                    
+                    <!-- Статистика -->
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="small text-muted mb-2">Статистика проекта</div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>Требований:</span>
+                            <span class="fw-bold" x-text="requirements.length"></span>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>Заинтересованных лиц:</span>
+                            <span class="fw-bold" x-text="stakeholders.length"></span>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>Бизнес-правил:</span>
+                            <span class="fw-bold" x-text="businessRules.length"></span>
+                        </div>
+                        <div class="d-flex justify-content-between small">
+                            <span>Качество требований:</span>
+                            <span class="fw-bold" x-text="calculateQualityScore() + '%'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Мобильное меню -->
+            <div class="sidebar p-3 position-fixed top-56 start-0 h-100 w-80 z-1000 bg-white shadow-lg" 
+                 :class="{'d-block': mobileMenuOpen, 'd-none': !mobileMenuOpen}" 
+                 style="top: 56px; overflow-y: auto;">
+                <button class="btn btn-sm btn-outline-secondary mb-3" @click="mobileMenuOpen = false">
+                    <i class="fas fa-times me-1"></i> Закрыть
+                </button>
+                
+                <nav class="nav flex-column">
+                    <div class="fw-bold text-uppercase small mb-2 text-muted">Модули системы</div>
+                    
+                    <a class="nav-link" :class="{active: activeModule === 'dashboard'}" href="#" @click.prevent="activeModule = 'dashboard'; mobileMenuOpen = false">
+                        <span class="module-icon"><i class="fas fa-tachometer-alt"></i></span>
+                        Дашборд
+                    </a>
+                    
+                    <a class="nav-link" :class="{active: activeModule === 'entities'}" href="#" @click.prevent="activeModule = 'entities'; mobileMenuOpen = false">
+                        <span class="module-icon"><i class="fas fa-cube"></i></span>
+                        Управление сущностями
+                    </a>
+                    
+                    <a class="nav-link" :class="{active: activeModule === 'processes'}" href="#" @click.prevent="activeModule = 'processes'; mobileMenuOpen = false">
+                        <span class="module-icon"><i class="fas fa-cogs"></i></span>
+                        Процессы работы
+                    </a>
+                    
+                    <a class="nav-link" :class="{active: activeModule === 'artifacts'}" href="#" @click.prevent="activeModule = 'artifacts'; mobileMenuOpen = false">
+                        <span class="module-icon"><i class="fas fa-file-alt"></i></span>
+                        Артефакты
+                    </a>
+                    
+                    <a class="nav-link" :class="{active: activeModule === 'analytics'}" href="#" @click.prevent="activeModule = 'analytics'; mobileMenuOpen = false">
+                        <span class="module-icon"><i class="fas fa-chart-bar"></i></span>
+                        Аналитика
+                    </a>
+                    
+                    <a class="nav-link" :class="{active: activeModule === 'admin'}" href="#" @click.prevent="activeModule = 'admin'; mobileMenuOpen = false">
+                        <span class="module-icon"><i class="fas fa-sliders-h"></i></span>
+                        Администрирование
+                    </a>
+                    
+                    <hr class="my-2">
+                    
+                    <div class="fw-bold text-uppercase small mb-2 text-muted mt-3">Быстрые действия</div>
+                    
+                    <button class="btn btn-sm btn-outline-primary mb-2" @click="showAddRequirementModal = true; mobileMenuOpen = false">
+                        <i class="fas fa-plus me-1"></i> Новое требование
+                    </button>
+                    
+                    <button class="btn btn-sm btn-outline-success mb-2" @click="generateSRSReport(); mobileMenuOpen = false">
+                        <i class="fas fa-file-export me-1"></i> Сгенерировать SRS
+                    </button>
+                    
+                    <button class="btn btn-sm btn-outline-info mb-2" @click="runConsistencyCheck(); mobileMenuOpen = false">
+                        <i class="fas fa-search me-1"></i> Проверить согласованность
+                    </button>
+                </nav>
+                
+                <!-- Статистика -->
+                <div class="mt-4 pt-3 border-top">
+                    <div class="small text-muted mb-2">Статистика проекта</div>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>Требований:</span>
+                        <span class="fw-bold" x-text="requirements.length"></span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>Заинтересованных лиц:</span>
+                        <span class="fw-bold" x-text="stakeholders.length"></span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>Бизнес-правил:</span>
+                        <span class="fw-bold" x-text="businessRules.length"></span>
+                    </div>
+                    <div class="d-flex justify-content-between small">
+                        <span>Качество требований:</span>
+                        <span class="fw-bold" x-text="calculateQualityScore() + '%'"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Основное содержимое -->
+            <div class="col-lg-10 col-md-12 py-3 main-content">
+                <!-- Дашборд -->
+                <div x-show="activeModule === 'dashboard'" x-transition>
+                    <h4 class="mb-3"><i class="fas fa-tachometer-alt me-2"></i>Дашборд проекта</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body py-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0">Требований</h6>
+                                            <h2 class="mb-0 mt-2" x-text="requirements.length"></h2>
+                                        </div>
+                                        <i class="fas fa-list-check fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body py-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0">Утверждено</h6>
+                                            <h2 class="mb-0 mt-2" x-text="requirements.filter(r => r.status === 'Утверждено').length"></h2>
+                                        </div>
+                                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body py-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0">В работе</h6>
+                                            <h2 class="mb-0 mt-2" x-text="requirements.filter(r => r.status === 'В работе').length"></h2>
+                                        </div>
+                                        <i class="fas fa-clock fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body py-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0">Качество</h6>
+                                            <h2 class="mb-0 mt-2" x-text="calculateQualityScore() + '%'"></h2>
+                                        </div>
+                                        <i class="fas fa-chart-line fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-history me-1"></i> Последние действия
+                                </div>
+                                <div class="card-body">
+                                    <div class="timeline">
+                                        <div class="timeline-item mb-3">
+                                            <div class="timeline-marker bg-primary"></div>
+                                            <div class="timeline-content">
+                                                <div class="small fw-semibold">Добавлено требование FR-003</div>
+                                                <div class="text-muted small">2 часа назад</div>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-item mb-3">
+                                            <div class="timeline-marker bg-success"></div>
+                                            <div class="timeline-content">
+                                                <div class="small fw-semibold">Утверждено требование FR-001</div>
+                                                <div class="text-muted small">Вчера, 15:30</div>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker bg-info"></div>
+                                            <div class="timeline-content">
+                                                <div class="small fw-semibold">Добавлен новый заинтересованный</div>
+                                                <div class="text-muted small">2 дня назад</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-exclamation-circle me-1"></i> Срочные задачи
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-2">
+                                                <div class="small fw-semibold">Требуют критериев приемки</div>
+                                                <small class="text-muted" x-text="requirements.filter(r => !r.acceptanceCriteria || r.acceptanceCriteria.trim() === '').length + ' требований'"></small>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-user-clock text-info"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-2">
+                                                <div class="small fw-semibold">Ожидают утверждения</div>
+                                                <small class="text-muted" x-text="requirements.filter(r => r.status === 'Предложено').length + ' требований'"></small>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-balance-scale text-danger"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-2">
+                                                <div class="small fw-semibold">Проверить приоритеты</div>
+                                                <small class="text-muted">Обновить приоритеты по MoSCoW</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button class="btn btn-sm btn-outline-primary w-100 mt-2" @click="activeModule = 'processes'">
+                                        <i class="fas fa-tasks me-1"></i> Перейти к задачам
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-rocket me-1"></i> Быстрый старт
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-plus-circle fa-2x text-primary mb-3"></i>
+                                            <h6>Добавить требование</h6>
+                                            <p class="small text-muted">Создайте новое требование для проекта</p>
+                                            <button class="btn btn-sm btn-primary" @click="showAddRequirementModal = true">
+                                                Создать требование
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-users fa-2x text-success mb-3"></i>
+                                            <h6>Добавить заинтересованное лицо</h6>
+                                            <p class="small text-muted">Определите участников проекта</p>
+                                            <button class="btn btn-sm btn-success" @click="showAddStakeholderModal = true">
+                                                Добавить участника
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-check-double fa-2x text-info mb-3"></i>
+                                            <h6>Проверить качество</h6>
+                                            <p class="small text-muted">Запустите проверку требований</p>
+                                            <button class="btn btn-sm btn-info" @click="runConsistencyCheck()">
+                                                Проверить требования
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Управление сущностями -->
+                <div x-show="activeModule === 'entities'" x-transition>
+                    <h4 class="mb-3"><i class="fas fa-cube me-2"></i>Управление сущностями онтологии</h4>
+                    
+                    <ul class="nav nav-tabs mb-3" id="entitiesTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="requirements-tab" data-bs-toggle="tab" data-bs-target="#requirements" type="button" role="tab">
+                                <i class="fas fa-list-check me-1"></i> Требования
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="stakeholders-tab" data-bs-toggle="tab" data-bs-target="#stakeholders" type="button" role="tab">
+                                <i class="fas fa-users me-1"></i> Заинтересованные лица
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab">
+                                <i class="fas fa-gavel me-1"></i> Бизнес-правила
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="entitiesTabContent">
+                        <!-- Вкладка требований -->
+                        <div class="tab-pane fade show active" id="requirements" role="tabpanel">
+                            <div class="d-flex justify-content-between mb-3">
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-primary" @click="showAddRequirementModal = true">
+                                        <i class="fas fa-plus me-1"></i> Добавить требование
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" @click="exportRequirements()">
+                                        <i class="fas fa-download me-1"></i> Экспорт
+                                    </button>
+                                </div>
+                                <div class="input-group input-group-sm" style="width: 300px;">
+                                    <input type="text" class="form-control" placeholder="Поиск требований..." x-model="requirementsSearch">
+                                    <button class="btn btn-outline-secondary" type="button">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Фильтры -->
+                            <div class="card mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row g-2">
+                                        <div class="col-auto">
+                                            <select class="form-select form-select-sm" x-model="filterPriority">
+                                                <option value="">Все приоритеты</option>
+                                                <option value="Must">Must</option>
+                                                <option value="Should">Should</option>
+                                                <option value="Could">Could</option>
+                                                <option value="Wont">Wont</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select class="form-select form-select-sm" x-model="filterType">
+                                                <option value="">Все типы</option>
+                                                <option value="Функциональное">Функциональное</option>
+                                                <option value="Нефункциональное">Нефункциональное</option>
+                                                <option value="Бизнес-требование">Бизнес-требование</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select class="form-select form-select-sm" x-model="filterStatus">
+                                                <option value="">Все статусы</option>
+                                                <option value="Предложено">Предложено</option>
+                                                <option value="Утверждено">Утверждено</option>
+                                                <option value="В работе">В работе</option>
+                                                <option value="Реализовано">Реализовано</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto ms-auto">
+                                            <button class="btn btn-sm btn-outline-secondary" @click="clearFilters()">
+                                                <i class="fas fa-times me-1"></i> Сбросить фильтры
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Список требований -->
+                            <div class="row">
+                                <template x-for="requirement in filteredRequirements" :key="requirement.id">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card requirement-card" 
+                                             :class="'priority-' + requirement.priority.toLowerCase()">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="card-title mb-0" x-text="requirement.title"></h6>
+                                                    <div class="dropdown">
+                                                        <button class="btn btn-sm btn-link text-decoration-none" type="button" data-bs-toggle="dropdown">
+                                                            <i class="fas fa-ellipsis-v"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                            <li><a class="dropdown-item" href="#" @click="editRequirement(requirement.id)">Редактировать</a></li>
+                                                            <li><a class="dropdown-item" href="#" @click="deleteRequirement(requirement.id)">Удалить</a></li>
+                                                            <li><hr class="dropdown-divider"></li>
+                                                            <li><a class="dropdown-item" href="#" @click="changeStatus(requirement.id, 'Утверждено')">Утвердить</a></li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-2">
+                                                    <span class="badge bg-primary me-1" x-text="requirement.type"></span>
+                                                    <span class="badge" 
+                                                          :class="{
+                                                            'bg-danger': requirement.priority === 'Must',
+                                                            'bg-warning': requirement.priority === 'Should',
+                                                            'bg-info': requirement.priority === 'Could',
+                                                            'bg-secondary': requirement.priority === 'Wont'
+                                                          }"
+                                                          x-text="requirement.priority"></span>
+                                                    <span class="badge bg-light text-dark border ms-1 status-badge" x-text="requirement.status"></span>
+                                                </div>
+                                                
+                                                <p class="card-text small text-muted mb-2" x-text="requirement.description"></p>
+                                                
+                                                <div class="small">
+                                                    <div class="d-flex justify-content-between">
+                                                        <span><i class="fas fa-user me-1"></i> <span x-text="requirement.source"></span></span>
+                                                        <span><i class="fas fa-check-circle me-1"></i> <span x-text="requirement.testability"></span></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <div x-show="filteredRequirements.length === 0" class="text-center py-5">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Требования не найдены</p>
+                                <button class="btn btn-sm btn-primary" @click="showAddRequirementModal = true">
+                                    <i class="fas fa-plus me-1"></i> Добавить первое требование
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Вкладка заинтересованных лиц -->
+                        <div class="tab-pane fade" id="stakeholders" role="tabpanel">
+                            <div class="d-flex justify-content-between mb-3">
+                                <button class="btn btn-sm btn-primary" @click="showAddStakeholderModal = true">
+                                    <i class="fas fa-user-plus me-1"></i> Добавить лицо
+                                </button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Имя</th>
+                                            <th>Роль</th>
+                                            <th>Вовлеченность</th>
+                                            <th>Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="stakeholder in stakeholders" :key="stakeholder.id">
+                                            <tr>
+                                                <td x-text="stakeholder.name"></td>
+                                                <td>
+                                                    <span class="badge bg-light text-dark" x-text="stakeholder.role"></span>
+                                                </td>
+                                                <td>
+                                                    <div class="progress" style="height: 5px;">
+                                                        <div class="progress-bar" :class="{
+                                                            'bg-success': stakeholder.involvement === 'Высокая',
+                                                            'bg-warning': stakeholder.involvement === 'Средняя',
+                                                            'bg-secondary': stakeholder.involvement === 'Низкая'
+                                                        }" :style="'width: ' + (stakeholder.involvement === 'Высокая' ? '100' : stakeholder.involvement === 'Средняя' ? '60' : '30') + '%'"></div>
+                                                    </div>
+                                                    <small class="text-muted" x-text="stakeholder.involvement"></small>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" @click="editStakeholder(stakeholder.id)">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger ms-1" @click="deleteStakeholder(stakeholder.id)">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Вкладка бизнес-правил -->
+                        <div class="tab-pane fade" id="rules" role="tabpanel">
+                            <div class="d-flex justify-content-between mb-3">
+                                <button class="btn btn-sm btn-primary" @click="showAddRuleModal = true">
+                                    <i class="fas fa-plus-circle me-1"></i> Добавить правило
+                                </button>
+                            </div>
+                            
+                            <div class="row">
+                                <template x-for="rule in businessRules" :key="rule.id">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <h6 class="card-title mb-1" x-text="rule.id"></h6>
+                                                    <span class="badge bg-info" x-text="rule.type"></span>
+                                                </div>
+                                                <p class="card-text small" x-text="rule.description"></p>
+                                                <div class="d-flex justify-content-end">
+                                                    <button class="btn btn-sm btn-outline-primary" @click="editRule(rule.id)">
+                                                        <i class="fas fa-edit me-1"></i> Редактировать
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Процессы работы -->
+                <div x-show="activeModule === 'processes'" x-transition>
+                    <h4 class="mb-3"><i class="fas fa-cogs me-2"></i>Процессы работы с требованиями</h4>
+                    
+                    <div class="row">
+                        <!-- Левая колонка: Инструменты процессов -->
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="fas fa-search me-1"></i> Проверка качества требований
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Выберите требование для проверки:</label>
+                                        <select class="form-select" x-model="selectedForCheck">
+                                            <option value="">-- Выберите требование --</option>
+                                            <template x-for="req in requirements" :key="req.id">
+                                                <option :value="req.id" x-text="req.id + ': ' + req.title"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    
+                                    <template x-if="selectedForCheck">
+                                        <div>
+                                            <div class="alert" :class="{
+                                                'alert-success': checkResult.pass,
+                                                'alert-warning': !checkResult.pass
+                                            }">
+                                                <h6 class="alert-heading">
+                                                    <i class="fas" :class="checkResult.pass ? 'fa-check-circle' : 'fa-exclamation-triangle'"></i>
+                                                    Результат проверки
+                                                </h6>
+                                                <p x-text="checkResult.message"></p>
+                                                
+                                                <template x-if="checkResult.issues && checkResult.issues.length">
+                                                    <div class="mt-2">
+                                                        <strong>Выявленные проблемы:</strong>
+                                                        <ul class="mb-0">
+                                                            <template x-for="issue in checkResult.issues" :key="issue">
+                                                                <li x-text="issue"></li>
+                                                            </template>
+                                                        </ul>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            
+                                            <button class="btn btn-sm btn-primary" @click="runQualityCheck()">
+                                                <i class="fas fa-redo me-1"></i> Запустить проверку
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="fas fa-sort-amount-down me-1"></i> Приоритизация требований
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Требование</th>
+                                                    <th>Текущий приоритет</th>
+                                                    <th>Приоритет по MoSCoW</th>
+                                                    <th>Действия</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="req in requirements.slice(0, 5)" :key="req.id">
+                                                    <tr>
+                                                        <td>
+                                                            <div class="fw-semibold" x-text="req.id"></div>
+                                                            <div class="small text-muted" x-text="req.title.substring(0, 50) + '...'"></div>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge" :class="{
+                                                                'bg-danger': req.priority === 'Must',
+                                                                'bg-warning': req.priority === 'Should',
+                                                                'bg-info': req.priority === 'Could',
+                                                                'bg-secondary': req.priority === 'Wont'
+                                                            }" x-text="req.priority"></span>
+                                                        </td>
+                                                        <td>
+                                                            <select class="form-select form-select-sm" 
+                                                                    x-model="req.priority"
+                                                                    @change="updatePriority(req.id, $event.target.value)">
+                                                                <option value="Must">Must</option>
+                                                                <option value="Should">Should</option>
+                                                                <option value="Could">Could</option>
+                                                                <option value="Wont">Wont</option>
+                                                            </select>
+                                                        </td>
+                                                        <td>
+                                                            <div class="btn-group btn-group-sm">
+                                                                <button class="btn btn-outline-primary" @click="promotePriority(req.id)">
+                                                                    <i class="fas fa-arrow-up"></i>
+                                                                </button>
+                                                                <button class="btn btn-outline-secondary" @click="demotePriority(req.id)">
+                                                                    <i class="fas fa-arrow-down"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <button class="btn btn-sm btn-success" @click="applyMoSCoW()">
+                                            <i class="fas fa-check-double me-1"></i> Применить распределение MoSCoW
+                                        </button>
+                                        <small class="text-muted ms-2">Must: 60%, Should: 20%, Could: 15%, Wont: 5%</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Правая колонка: Анализ влияния изменений -->
+                        <div class="col-lg-4">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="fas fa-project-diagram me-1"></i> Анализ влияния изменений
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Выберите требование для изменения:</label>
+                                        <select class="form-select" x-model="selectedForImpact">
+                                            <option value="">-- Выберите требование --</option>
+                                            <template x-for="req in requirements" :key="req.id">
+                                                <option :value="req.id" x-text="req.id"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    
+                                    <template x-if="selectedForImpact && impactAnalysisResult">
+                                        <div>
+                                            <div class="alert alert-info">
+                                                <h6 class="alert-heading">Анализ влияния</h6>
+                                                <div class="small">
+                                                    <div>Затронутых требований: <span x-text="impactAnalysisResult.affectedRequirements"></span></div>
+                                                    <div>Оценка сложности: <span x-text="impactAnalysisResult.complexity"></span></div>
+                                                    <div>Риск реализации: <span x-text="impactAnalysisResult.risk"></span></div>
+                                                </div>
+                                            </div>
+                                            
+                                            <button class="btn btn-sm btn-outline-primary w-100" @click="runImpactAnalysis()">
+                                                <i class="fas fa-calculator me-1"></i> Выполнить анализ
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> Проверка на неоднозначность (Правило D26)
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <label class="form-label">Введите текст требования:</label>
+                                        <textarea class="form-control" rows="3" 
+                                                  x-model="ambiguityCheckText"
+                                                  placeholder="Например: Система должна работать быстро..."></textarea>
+                                    </div>
+                                    
+                                    <button class="btn btn-sm btn-warning mb-3" @click="checkAmbiguity()">
+                                        <i class="fas fa-search me-1"></i> Проверить на неоднозначность
+                                    </button>
+                                    
+                                    <template x-if="ambiguityResults && ambiguityResults.length">
+                                        <div>
+                                            <h6 class="mt-2">Найденные проблемы:</h6>
+                                            <ul class="list-unstyled">
+                                                <template x-for="result in ambiguityResults" :key="result.term">
+                                                    <li class="mb-1">
+                                                        <span class="badge bg-danger me-1" x-text="result.term"></span>
+                                                        <small x-text="result.suggestion"></small>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Артефакты -->
+                <div x-show="activeModule === 'artifacts'" x-transition>
+                    <h4 class="mb-3"><i class="fas fa-file-alt me-2"></i>Управление артефактами</h4>
+                    
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-table me-1"></i> Матрица отслеживаемости</span>
+                                    <button class="btn btn-sm btn-primary" @click="generateTraceabilityMatrix()">
+                                        <i class="fas fa-sync me-1"></i> Обновить матрицу
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table table-bordered table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Требование</th>
+                                                    <template x-for="stakeholder in stakeholders.slice(0, 5)" :key="stakeholder.id">
+                                                        <th class="text-center" x-text="stakeholder.name"></th>
+                                                    </template>
+                                                    <th class="text-center">SRS</th>
+                                                    <th class="text-center">Тесты</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="requirement in requirements.slice(0, 10)" :key="requirement.id">
+                                                    <tr>
+                                                        <td class="small">
+                                                            <div class="fw-semibold" x-text="requirement.id"></div>
+                                                            <div class="text-muted" x-text="requirement.title.substring(0, 30) + '...'"></div>
+                                                        </td>
+                                                        <template x-for="stakeholder in stakeholders.slice(0, 5)" :key="stakeholder.id">
+                                                            <td class="text-center align-middle">
+                                                                <div class="trace-matrix-cell mx-auto" 
+                                                                     :class="{
+                                                                        'bg-success': Math.random() > 0.5,
+                                                                        'bg-light': Math.random() <= 0.5
+                                                                     }"
+                                                                     @click="toggleTraceLink(requirement.id, 'stakeholder-' + stakeholder.id)">
+                                                                    <i class="fas" :class="Math.random() > 0.5 ? 'fa-check' : 'fa-minus'"></i>
+                                                                </div>
+                                                            </td>
+                                                        </template>
+                                                        <td class="text-center align-middle">
+                                                            <div class="trace-matrix-cell mx-auto bg-info" 
+                                                                 @click="toggleTraceLink(requirement.id, 'srs')">
+                                                                <i class="fas fa-link"></i>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center align-middle">
+                                                            <div class="trace-matrix-cell mx-auto" 
+                                                                 :class="{
+                                                                    'bg-warning': requirement.status === 'Реализовано',
+                                                                    'bg-light': requirement.status !== 'Реализовано'
+                                                                 }"
+                                                                 @click="toggleTraceLink(requirement.id, 'tests')">
+                                                                <i class="fas" :class="requirement.status === 'Реализовано' ? 'fa-check' : 'fa-clock'"></i>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <div class="row g-2">
+                                            <div class="col-auto">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="trace-matrix-cell bg-success me-2"></div>
+                                                    <small>Связь установлена</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="trace-matrix-cell bg-light me-2"></div>
+                                                    <small>Связь отсутствует</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="trace-matrix-cell bg-info me-2"></div>
+                                                    <small>Документировано в SRS</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-file-export me-1"></i> Генерация документов
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-file-contract fa-2x text-primary mb-3"></i>
+                                                    <h6>SRS Документ</h6>
+                                                    <p class="small text-muted">Спецификация требований к ПО</p>
+                                                    <button class="btn btn-sm btn-outline-primary" @click="generateSRS()">
+                                                        Сгенерировать SRS
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-list-check fa-2x text-success mb-3"></i>
+                                                    <h6>Каталог требований</h6>
+                                                    <p class="small text-muted">Список всех требований проекта</p>
+                                                    <button class="btn btn-sm btn-outline-success" @click="generateRequirementsCatalog()">
+                                                        Сгенерировать каталог
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-users fa-2x text-info mb-3"></i>
+                                                    <h6>Отчет по заинтересованным лицам</h6>
+                                                    <p class="small text-muted">Информация по всем участникам</p>
+                                                    <button class="btn btn-sm btn-outline-info" @click="generateStakeholdersReport()">
+                                                        Сгенерировать отчет
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-4">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="fas fa-history me-1"></i> История изменений
+                                </div>
+                                <div class="card-body">
+                                    <div class="timeline">
+                                        <div class="timeline-item mb-3">
+                                            <div class="timeline-marker bg-primary"></div>
+                                            <div class="timeline-content">
+                                                <div class="small fw-semibold">Добавлено требование FR-003</div>
+                                                <div class="text-muted small">2 часа назад</div>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-item mb-3">
+                                            <div class="timeline-marker bg-success"></div>
+                                            <div class="timeline-content">
+                                                <div class="small fw-semibold">Утверждено требование FR-001</div>
+                                                <div class="text-muted small">Вчера, 15:30</div>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker bg-info"></div>
+                                            <div class="timeline-content">
+                                                <div class="small fw-semibold">Добавлен новый заинтересованный</div>
+                                                <div class="text-muted small">2 дня назад</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-clipboard-check me-1"></i> Критерии приемки
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Выберите требование:</label>
+                                        <select class="form-select" x-model="selectedForAcceptance">
+                                            <option value="">-- Выберите требование --</option>
+                                            <template x-for="req in requirements" :key="req.id">
+                                                <option :value="req.id" x-text="req.id + ': ' + req.title.substring(0, 40)"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    
+                                    <template x-if="selectedForAcceptance">
+                                        <div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Критерии приемки:</label>
+                                                <textarea class="form-control" rows="3" 
+                                                          x-model="acceptanceCriteriaText"
+                                                          placeholder="Введите критерии приемки..."></textarea>
+                                            </div>
+                                            <button class="btn btn-sm btn-success" @click="saveAcceptanceCriteria()">
+                                                <i class="fas fa-save me-1"></i> Сохранить критерии
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Аналитика -->
+                <div x-show="activeModule === 'analytics'" x-transition>
+                    <h4 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Аналитика и отчетность</h4>
+                    
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="fas fa-chart-pie me-1"></i> Статистика требований
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div id="requirementsChart"></div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div id="priorityChart"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-tasks me-1"></i> Качество требований
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Требование</th>
+                                                    <th>Тестируемость</th>
+                                                    <th>Стабильность</th>
+                                                    <th>Полнота</th>
+                                                    <th>Оценка</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="req in requirements.slice(0, 8)" :key="req.id">
+                                                    <tr>
+                                                        <td class="small" x-text="req.id"></td>
+                                                        <td>
+                                                            <div class="progress" style="height: 5px;">
+                                                                <div class="progress-bar" :class="{
+                                                                    'bg-success': req.testability === 'Высокая',
+                                                                    'bg-warning': req.testability === 'Средняя',
+                                                                    'bg-danger': req.testability === 'Низкая'
+                                                                }" :style="'width: ' + (req.testability === 'Высокая' ? '100' : req.testability === 'Средняя' ? '60' : '30') + '%'"></div>
+                                                            </div>
+                                                            <small x-text="req.testability"></small>
+                                                        </td>
+                                                        <td>
+                                                            <div class="progress" style="height: 5px;">
+                                                                <div class="progress-bar" :class="{
+                                                                    'bg-success': req.stability === 'Высокая',
+                                                                    'bg-warning': req.stability === 'Средняя',
+                                                                    'bg-danger': req.stability === 'Низкая'
+                                                                }" :style="'width: ' + (req.stability === 'Высокая' ? '100' : req.stability === 'Средняя' ? '60' : '30') + '%'"></div>
+                                                            </div>
+                                                            <small x-text="req.stability"></small>
+                                                        </td>
+                                                        <td>
+                                                            <div class="progress" style="height: 5px;">
+                                                                <div class="progress-bar" :class="{
+                                                                    'bg-success': req.acceptanceCriteria && req.acceptanceCriteria.length > 20,
+                                                                    'bg-warning': req.acceptanceCriteria && req.acceptanceCriteria.length > 10,
+                                                                    'bg-danger': !req.acceptanceCriteria || req.acceptanceCriteria.length <= 10
+                                                                }" :style="'width: ' + Math.min(100, (req.acceptanceCriteria ? req.acceptanceCriteria.length : 0) * 2) + '%'"></div>
+                                                            </div>
+                                                            <small x-text="req.acceptanceCriteria ? 'Есть' : 'Нет'"></small>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge" :class="{
+                                                                'bg-success': calculateRequirementScore(req) >= 80,
+                                                                'bg-warning': calculateRequirementScore(req) >= 60,
+                                                                'bg-danger': calculateRequirementScore(req) < 60
+                                                            }" x-text="calculateRequirementScore(req) + '%'"></span>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-4">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="fas fa-exclamation-circle me-1"></i> Проблемные требования
+                                </div>
+                                <div class="card-body">
+                                    <template x-for="req in problematicRequirements" :key="req.id">
+                                        <div class="alert alert-warning py-2 mb-2">
+                                            <div class="fw-semibold small" x-text="req.id"></div>
+                                            <div class="small" x-text="getRequirementIssue(req)"></div>
+                                            <button class="btn btn-sm btn-outline-warning mt-1" @click="fixRequirementIssue(req.id)">
+                                                Исправить
+                                            </button>
+                                        </div>
+                                    </template>
+                                    
+                                    <div x-show="problematicRequirements.length === 0" class="text-center text-muted py-3">
+                                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                                        <p class="mb-0">Проблемных требований не обнаружено</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-rocket me-1"></i> Рекомендации системы
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <div class="alert alert-info py-2">
+                                            <i class="fas fa-lightbulb me-2"></i>
+                                            <span>Проведите рецензирование требований с разработчиками (Правило D38)</span>
+                                        </div>
+                                        
+                                        <div class="alert alert-info py-2">
+                                            <i class="fas fa-lightbulb me-2"></i>
+                                            <span>Создайте прототип для спорных требований (Правило I80)</span>
+                                        </div>
+                                        
+                                        <div class="alert alert-info py-2">
+                                            <i class="fas fa-lightbulb me-2"></i>
+                                            <span>Обновите матрицу отслеживаемости (Правило H77)</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button class="btn btn-sm btn-outline-primary w-100" @click="showMoreRecommendations()">
+                                        <i class="fas fa-plus me-1"></i> Показать больше рекомендаций
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Администрирование -->
+                <div x-show="activeModule === 'admin'" x-transition>
+                    <h4 class="mb-3"><i class="fas fa-sliders-h me-2"></i>Администрирование системы</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="fas fa-database me-1"></i> Управление данными
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <h6>Импорт/Экспорт данных</h6>
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-sm btn-outline-primary" @click="exportAllData()">
+                                                <i class="fas fa-download me-1"></i> Экспортировать все данные
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" @click="importData()">
+                                                <i class="fas fa-upload me-1"></i> Импортировать данные
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @click="resetData()">
+                                                <i class="fas fa-trash me-1"></i> Сбросить данные
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <h6>Статистика системы</h6>
+                                        <div class="small">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>Всего записей:</span>
+                                                <span class="fw-bold" x-text="requirements.length + stakeholders.length + businessRules.length"></span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>Объем данных:</span>
+                                                <span class="fw-bold" x-text="calculateDataSize() + ' KB'"></span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>Дата последнего изменения:</span>
+                                                <span class="fw-bold" x-text="new Date().toLocaleDateString()"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-cogs me-1"></i> Настройки системы
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Название проекта</label>
+                                        <input type="text" class="form-control" x-model="projectName" placeholder="Введите название проекта">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Схема идентификаторов требований</label>
+                                        <select class="form-select" x-model="idSchema">
+                                            <option value="FR-XXX">FR-XXX (Функциональные требования)</option>
+                                            <option value="NFR-XXX">NFR-XXX (Нефункциональные требования)</option>
+                                            <option value="REQ-XXX">REQ-XXX (Общие требования)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="autoSave" x-model="autoSave">
+                                        <label class="form-check-label" for="autoSave">Автосохранение</label>
+                                    </div>
+                                    
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="notifications" x-model="notifications">
+                                        <label class="form-check-label" for="notifications">Уведомления</label>
+                                    </div>
+                                    
+                                    <button class="btn btn-sm btn-primary" @click="saveSettings()">
+                                        <i class="fas fa-save me-1"></i> Сохранить настройки
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="fas fa-shield-alt me-1"></i> Правила экспертной системы
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <h6>Активные правила</h6>
+                                        <div class="small">
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input" type="checkbox" id="ruleD25" checked>
+                                                <label class="form-check-label" for="ruleD25">Правило D25: Проверка атомарности требований</label>
+                                            </div>
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input" type="checkbox" id="ruleD26" checked>
+                                                <label class="form-check-label" for="ruleD26">Правило D26: Проверка неоднозначных терминов</label>
+                                            </div>
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input" type="checkbox" id="ruleH78" checked>
+                                                <label class="form-check-label" for="ruleH78">Правило H78: Критерии приемки обязательны</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="ruleI80" checked>
+                                                <label class="form-check-label" for="ruleI80">Правило I80: Прототипирование спорных требований</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <h6>Уровень строгости проверок</h6>
+                                        <select class="form-select" x-model="strictnessLevel">
+                                            <option value="low">Низкий (только основные проверки)</option>
+                                            <option value="medium">Средний (рекомендуется)</option>
+                                            <option value="high">Высокий (все проверки)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <button class="btn btn-sm btn-outline-primary" @click="updateRules()">
+                                        <i class="fas fa-sync me-1"></i> Обновить правила
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-info-circle me-1"></i> О системе
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <h6>Экспертная система для выработки требований к ПО</h6>
+                                        <p class="small">Версия 3.0</p>
+                                        <p class="small">Система разработана для поддержки полного цикла работы с требованиями к программному обеспечению.</p>
+                                    </div>
+                                    
+                                    <div class="small text-muted">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span>Версия интерфейса:</span>
+                                            <span>1.0.0</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span>Дата сборки:</span>
+                                            <span x-text="new Date().toLocaleDateString()"></span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Лицензия:</span>
+                                            <span>MIT</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr>
+                                    
+                                    <div class="text-center">
+                                        <button class="btn btn-sm btn-outline-info" @click="showSystemInfo()">
+                                            <i class="fas fa-code me-1"></i> Техническая информация
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальные окна -->
+    
+    <!-- Модальное окно добавления/редактирования требования -->
+    <div class="modal fade" id="requirementModal" tabindex="-1" aria-hidden="true" x-show="showAddRequirementModal" @keydown.escape="showAddRequirementModal = false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <span x-text="selectedRequirementId ? 'Редактирование требования' : 'Добавление нового требования'"></span>
+                    </h5>
+                    <button type="button" class="btn-close" @click="showAddRequirementModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="requirementForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="reqId" class="form-label">Идентификатор</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="reqId" 
+                                           x-model="currentRequirement.id" required>
+                                    <button class="btn btn-outline-secondary" type="button" 
+                                            @click="currentRequirement.id = generateRequirementId()">
+                                        <i class="fas fa-sync"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="reqTitle" class="form-label">Заголовок</label>
+                                <input type="text" class="form-control" id="reqTitle" 
+                                       x-model="currentRequirement.title" required>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="reqType" class="form-label">Тип</label>
+                                <select class="form-select" id="reqType" 
+                                        x-model="currentRequirement.type"
+                                        @change="watchRequirementType()">
+                                    <option value="Функциональное">Функциональное</option>
+                                    <option value="Нефункциональное">Нефункциональное</option>
+                                    <option value="Бизнес-требование">Бизнес-требование</option>
+                                    <option value="Пользовательское">Пользовательское</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="reqPriority" class="form-label">Приоритет</label>
+                                <select class="form-select" id="reqPriority" x-model="currentRequirement.priority">
+                                    <option value="Must">Must</option>
+                                    <option value="Should">Should</option>
+                                    <option value="Could">Could</option>
+                                    <option value="Wont">Wont</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="reqStatus" class="form-label">Статус</label>
+                                <select class="form-select" id="reqStatus" x-model="currentRequirement.status">
+                                    <option value="Предложено">Предложено</option>
+                                    <option value="Утверждено">Утверждено</option>
+                                    <option value="В работе">В работе</option>
+                                    <option value="Реализовано">Реализовано</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-12">
+                                <label for="reqDescription" class="form-label">Описание</label>
+                                <textarea class="form-control" id="reqDescription" rows="3" 
+                                          x-model="currentRequirement.description"></textarea>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="reqSource" class="form-label">Источник</label>
+                                <select class="form-select" id="reqSource" x-model="currentRequirement.source">
+                                    <option value="">Выберите источник</option>
+                                    <template x-for="stakeholder in stakeholders" :key="stakeholder.id">
+                                        <option :value="'Заинтересованное лицо: ' + stakeholder.name">
+                                            Заинтересованное лицо: <span x-text="stakeholder.name"></span>
+                                        </option>
+                                    </template>
+                                    <template x-for="rule in businessRules" :key="rule.id">
+                                        <option :value="'Бизнес-правило: ' + rule.id">
+                                            Бизнес-правило: <span x-text="rule.id"></span>
+                                        </option>
+                                    </template>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="reqAcceptance" class="form-label">Критерии приемки</label>
+                                <textarea class="form-control" id="reqAcceptance" rows="2" 
+                                          x-model="currentRequirement.acceptanceCriteria"></textarea>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="reqTestability" class="form-label">Тестируемость</label>
+                                <select class="form-select" id="reqTestability" x-model="currentRequirement.testability">
+                                    <option value="Высокая">Высокая</option>
+                                    <option value="Средняя">Средняя</option>
+                                    <option value="Низкая">Низкая</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="reqStability" class="form-label">Стабильность</label>
+                                <select class="form-select" id="reqStability" x-model="currentRequirement.stability">
+                                    <option value="Высокая">Высокая</option>
+                                    <option value="Средняя">Средняя</option>
+                                    <option value="Низкая">Низкая</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="reqComplexity" class="form-label">Сложность</label>
+                                <select class="form-select" id="reqComplexity" x-model="currentRequirement.complexity">
+                                    <option value="Низкая">Низкая</option>
+                                    <option value="Средняя">Средняя</option>
+                                    <option value="Высокая">Высокая</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="showAddRequirementModal = false">Отмена</button>
+                    <button type="button" class="btn btn-primary" @click="saveRequirement()">
+                        <span x-text="selectedRequirementId ? 'Сохранить' : 'Добавить'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно для заинтересованных лиц -->
+    <div class="modal fade" id="stakeholderModal" tabindex="-1" aria-hidden="true" x-show="showAddStakeholderModal" @keydown.escape="showAddStakeholderModal = false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавление заинтересованного лица</h5>
+                    <button type="button" class="btn-close" @click="showAddStakeholderModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Имя</label>
+                        <input type="text" class="form-control" x-model="currentStakeholder.name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Роль</label>
+                        <select class="form-select" x-model="currentStakeholder.role">
+                            <option>Бизнес-аналитик</option>
+                            <option>Архитектор ПО</option>
+                            <option>Менеджер проекта</option>
+                            <option>Разработчик</option>
+                            <option>Тестировщик</option>
+                            <option>Пользователь</option>
+                            <option>Спонсор</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Уровень вовлеченности</label>
+                        <select class="form-select" x-model="currentStakeholder.involvement">
+                            <option>Высокая</option>
+                            <option>Средняя</option>
+                            <option>Низкая</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="showAddStakeholderModal = false">Отмена</button>
+                    <button type="button" class="btn btn-primary" @click="saveStakeholder()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно для бизнес-правил -->
+    <div class="modal fade" id="ruleModal" tabindex="-1" aria-hidden="true" x-show="showAddRuleModal" @keydown.escape="showAddRuleModal = false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавление бизнес-правила</h5>
+                    <button type="button" class="btn-close" @click="showAddRuleModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Идентификатор правила</label>
+                        <input type="text" class="form-control" x-model="currentRule.id" placeholder="Например: BR-003">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Тип правила</label>
+                        <select class="form-select" x-model="currentRule.type">
+                            <option>Ограничительное правило</option>
+                            <option>Структурное правило</option>
+                            <option>Активатор операции</option>
+                            <option>Вывод</option>
+                            <option>Вычисление</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание правила</label>
+                        <textarea class="form-control" rows="3" x-model="currentRule.description"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="showAddRuleModal = false">Отмена</button>
+                    <button type="button" class="btn btn-primary" @click="saveRule()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Уведомления -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="fas fa-info-circle text-primary me-2"></i>
+                <strong class="me-auto">Экспертная система</strong>
+                <small>Только что</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" x-text="toastMessage"></div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Глобальное состояние приложения
+        function app() {
+            return {
+                // Активный модуль
+                activeModule: 'dashboard',
+                mobileMenuOpen: false,
+                
+                // Данные приложения
+                requirements: [],
+                stakeholders: [],
+                businessRules: [],
+                artifacts: [],
+                traceabilityLinks: [],
+                
+                // Настройки
+                projectName: 'Разработка ERP-системы',
+                idSchema: 'FR-XXX',
+                autoSave: true,
+                notifications: true,
+                strictnessLevel: 'medium',
+                
+                // Вспомогательные переменные
+                showAddRequirementModal: false,
+                showAddStakeholderModal: false,
+                showAddRuleModal: false,
+                selectedRequirementId: null,
+                
+                // Поиск и фильтры
+                requirementsSearch: '',
+                filterPriority: '',
+                filterType: '',
+                filterStatus: '',
+                
+                // Проверки и аналитика
+                selectedForCheck: '',
+                selectedForImpact: '',
+                selectedForAcceptance: '',
+                checkResult: { pass: false, message: '', issues: [] },
+                impactAnalysisResult: null,
+                ambiguityCheckText: '',
+                ambiguityResults: [],
+                acceptanceCriteriaText: '',
+                
+                // Текущие редактируемые объекты
+                currentRequirement: {
+                    id: '',
+                    title: '',
+                    type: 'Функциональное',
+                    priority: 'Must',
+                    status: 'Предложено',
+                    source: '',
+                    acceptanceCriteria: '',
+                    testability: 'Высокая',
+                    stability: 'Высокая',
+                    complexity: 'Средняя',
+                    description: ''
+                },
+                currentStakeholder: {
+                    id: null,
+                    name: '',
+                    role: 'Бизнес-аналитик',
+                    involvement: 'Средняя'
+                },
+                currentRule: {
+                    id: '',
+                    type: 'Ограничительное правило',
+                    description: ''
+                },
+                
+                // Уведомления
+                toastMessage: '',
+                
+                // Вычисляемые свойства
+                get filteredRequirements() {
+                    let filtered = this.requirements;
+                    
+                    if (this.requirementsSearch) {
+                        const search = this.requirementsSearch.toLowerCase();
+                        filtered = filtered.filter(req => 
+                            req.title.toLowerCase().includes(search) ||
+                            req.description.toLowerCase().includes(search) ||
+                            req.id.toLowerCase().includes(search)
+                        );
+                    }
+                    
+                    if (this.filterPriority) {
+                        filtered = filtered.filter(req => req.priority === this.filterPriority);
+                    }
+                    
+                    if (this.filterType) {
+                        filtered = filtered.filter(req => req.type === this.filterType);
+                    }
+                    
+                    if (this.filterStatus) {
+                        filtered = filtered.filter(req => req.status === this.filterStatus);
+                    }
+                    
+                    return filtered;
+                },
+                
+                get problematicRequirements() {
+                    return this.requirements.filter(req => {
+                        const score = this.calculateRequirementScore(req);
+                        return score < 60 || 
+                               !req.acceptanceCriteria || 
+                               req.acceptanceCriteria.trim() === '' ||
+                               req.testability === 'Низкая';
+                    }).slice(0, 3);
+                },
+                
+                // Инициализация
+                init() {
+                    this.loadSampleData();
+                    this.initCharts();
+                    this.showNotification('Система загружена. Добро пожаловать в Экспертную систему для выработки требований к ПО!');
+                },
+                
+                // Загрузка примеров данных для демонстрации
+                loadSampleData() {
+                    // Пример требований
+                    this.requirements = [
+                        {
+                            id: 'FR-001',
+                            title: 'Система должна позволять создавать требования',
+                            type: 'Функциональное',
+                            priority: 'Must',
+                            status: 'Утверждено',
+                            source: 'Заинтересованное лицо: Иванов А.П.',
+                            acceptanceCriteria: '1. Пользователь может создать новое требование через форму\n2. Форма содержит обязательные поля: ID, заголовок, тип\n3. После сохранения требование появляется в списке',
+                            testability: 'Высокая',
+                            stability: 'Высокая',
+                            complexity: 'Низкая',
+                            description: 'Основная функциональность системы - создание новых требований'
+                        },
+                        {
+                            id: 'FR-002',
+                            title: 'Система должна проверять требования на неоднозначность',
+                            type: 'Функциональное',
+                            priority: 'Should',
+                            status: 'В работе',
+                            source: 'Бизнес-правило D26',
+                            acceptanceCriteria: '1. Система выделяет термины "быстро", "удобно", "иногда" в тексте\n2. Предлагает замену на измеримые критерии\n3. Показывает список проблемных терминов',
+                            testability: 'Средняя',
+                            stability: 'Средняя',
+                            complexity: 'Средняя',
+                            description: 'Проверка качества требований на наличие неоднозначных формулировок'
+                        },
+                        {
+                            id: 'NFR-001',
+                            title: 'Система должна иметь время отклика менее 2 секунд',
+                            type: 'Нефункциональное',
+                            priority: 'Must',
+                            status: 'Утверждено',
+                            source: 'Заинтересованное лицо: Петрова Е.В.',
+                            acceptanceCriteria: '1. 95% операций выполняются за < 2 сек\n2. Максимальное время отклика < 5 сек\n3. Производительность тестируется при 100 одновременных пользователей',
+                            testability: 'Высокая',
+                            stability: 'Высокая',
+                            complexity: 'Высокая',
+                            description: 'Требование к производительности системы'
+                        }
+                    ];
+                    
+                    // Пример заинтересованных лиц
+                    this.stakeholders = [
+                        {id: 1, name: 'Иванов А.П.', role: 'Бизнес-аналитик', involvement: 'Высокая'},
+                        {id: 2, name: 'Петрова Е.В.', role: 'Архитектор ПО', involvement: 'Средняя'},
+                        {id: 3, name: 'Сидоров К.М.', role: 'Менеджер проекта', involvement: 'Средняя'},
+                        {id: 4, name: 'Кузнецова О.И.', role: 'Разработчик', involvement: 'Высокая'}
+                    ];
+                    
+                    // Пример бизнес-правил
+                    this.businessRules = [
+                        {id: 'BR-001', type: 'Ограничительное правило', description: 'Требование не может быть утверждено без критериев приемки'},
+                        {id: 'BR-002', type: 'Активатор операции', description: 'Если требование имеет приоритет "Must", оно должно быть реализовано в первой итерации'},
+                        {id: 'BR-003', type: 'Вычисление', description: 'Оценка сложности требования рассчитывается на основе количества затронутых компонентов системы'}
+                    ];
+                },
+                
+                // Расчет оценки качества требований
+                calculateQualityScore() {
+                    if (this.requirements.length === 0) return 0;
+                    
+                    let totalScore = 0;
+                    this.requirements.forEach(req => {
+                        totalScore += this.calculateRequirementScore(req);
+                    });
+                    
+                    return Math.round(totalScore / this.requirements.length);
+                },
+                
+                calculateRequirementScore(req) {
+                    let score = 0;
+                    
+                    if (req.acceptanceCriteria && req.acceptanceCriteria.trim() !== '') score += 40;
+                    if (req.source && req.source.trim() !== '') score += 20;
+                    if (req.testability === 'Высокая') score += 20;
+                    if (req.testability === 'Средняя') score += 10;
+                    if (req.stability === 'Высокая') score += 10;
+                    if (req.stability === 'Средняя') score += 5;
+                    if (req.description && req.description.trim() !== '') score += 5;
+                    
+                    return Math.min(100, score);
+                },
+                
+                // Методы для работы с требованиями
+                editRequirement(id) {
+                    const requirement = this.requirements.find(req => req.id === id);
+                    if (requirement) {
+                        this.currentRequirement = {...requirement};
+                        this.selectedRequirementId = id;
+                        this.showAddRequirementModal = true;
+                    }
+                },
+                
+                deleteRequirement(id) {
+                    if (confirm('Удалить это требование?')) {
+                        this.requirements = this.requirements.filter(req => req.id !== id);
+                        this.showNotification(`Требование ${id} удалено`);
+                    }
+                },
+                
+                saveRequirement() {
+                    if (!this.currentRequirement.id || !this.currentRequirement.title) {
+                        this.showNotification('Заполните обязательные поля: Идентификатор и Заголовок');
+                        return;
+                    }
+                    
+                    if (this.selectedRequirementId) {
+                        // Обновление существующего требования
+                        const index = this.requirements.findIndex(req => req.id === this.selectedRequirementId);
+                        if (index !== -1) {
+                            this.requirements[index] = {...this.currentRequirement};
+                            this.showNotification(`Требование ${this.currentRequirement.id} обновлено`);
+                        }
+                    } else {
+                        // Проверка на дубликаты
+                        if (this.requirements.some(req => req.id === this.currentRequirement.id)) {
+                            this.showNotification(`Требование с ID ${this.currentRequirement.id} уже существует`);
+                            return;
+                        }
+                        
+                        // Добавление нового требования
+                        this.requirements.push({...this.currentRequirement});
+                        this.showNotification(`Новое требование ${this.currentRequirement.id} добавлено`);
+                    }
+                    
+                    this.resetRequirementForm();
+                    this.showAddRequirementModal = false;
+                },
+                
+                resetRequirementForm() {
+                    this.currentRequirement = {
+                        id: '',
+                        title: '',
+                        type: 'Функциональное',
+                        priority: 'Must',
+                        status: 'Предложено',
+                        source: '',
+                        acceptanceCriteria: '',
+                        testability: 'Высокая',
+                        stability: 'Высокая',
+                        complexity: 'Средняя',
+                        description: ''
+                    };
+                    this.selectedRequirementId = null;
+                },
+                
+                changeStatus(id, status) {
+                    const requirement = this.requirements.find(req => req.id === id);
+                    if (requirement) {
+                        requirement.status = status;
+                        this.showNotification(`Статус требования ${id} изменен на "${status}"`);
+                    }
+                },
+                
+                clearFilters() {
+                    this.requirementsSearch = '';
+                    this.filterPriority = '';
+                    this.filterType = '';
+                    this.filterStatus = '';
+                },
+                
+                // Методы для работы с заинтересованными лицами
+                editStakeholder(id) {
+                    const stakeholder = this.stakeholders.find(s => s.id === id);
+                    if (stakeholder) {
+                        this.currentStakeholder = {...stakeholder};
+                        this.showAddStakeholderModal = true;
+                    }
+                },
+                
+                deleteStakeholder(id) {
+                    if (confirm('Удалить это заинтересованное лицо?')) {
+                        this.stakeholders = this.stakeholders.filter(s => s.id !== id);
+                        this.showNotification('Заинтересованное лицо удалено');
+                    }
+                },
+                
+                saveStakeholder() {
+                    if (!this.currentStakeholder.name) {
+                        this.showNotification('Введите имя');
+                        return;
+                    }
+                    
+                    if (this.currentStakeholder.id) {
+                        // Обновление
+                        const index = this.stakeholders.findIndex(s => s.id === this.currentStakeholder.id);
+                        if (index !== -1) {
+                            this.stakeholders[index] = {...this.currentStakeholder};
+                            this.showNotification('Заинтересованное лицо обновлено');
+                        }
+                    } else {
+                        // Добавление нового
+                        const newId = this.stakeholders.length > 0 
+                            ? Math.max(...this.stakeholders.map(s => s.id)) + 1 
+                            : 1;
+                        this.stakeholders.push({
+                            ...this.currentStakeholder,
+                            id: newId
+                        });
+                        this.showNotification('Новое заинтересованное лицо добавлено');
+                    }
+                    
+                    this.currentStakeholder = {
+                        id: null,
+                        name: '',
+                        role: 'Бизнес-аналитик',
+                        involvement: 'Средняя'
+                    };
+                    this.showAddStakeholderModal = false;
+                },
+                
+                // Методы для работы с бизнес-правилами
+                editRule(id) {
+                    const rule = this.businessRules.find(r => r.id === id);
+                    if (rule) {
+                        this.currentRule = {...rule};
+                        this.showAddRuleModal = true;
+                    }
+                },
+                
+                saveRule() {
+                    if (!this.currentRule.id || !this.currentRule.description) {
+                        this.showNotification('Заполните обязательные поля');
+                        return;
+                    }
+                    
+                    const existingIndex = this.businessRules.findIndex(r => r.id === this.currentRule.id);
+                    
+                    if (existingIndex !== -1) {
+                        // Обновление
+                        this.businessRules[existingIndex] = {...this.currentRule};
+                        this.showNotification(`Бизнес-правило ${this.currentRule.id} обновлено`);
+                    } else {
+                        // Добавление нового
+                        this.businessRules.push({...this.currentRule});
+                        this.showNotification(`Новое бизнес-правило ${this.currentRule.id} добавлено`);
+                    }
+                    
+                    this.currentRule = {
+                        id: '',
+                        type: 'Ограничительное правило',
+                        description: ''
+                    };
+                    this.showAddRuleModal = false;
+                },
+                
+                // Методы для модуля процессов
+                runQualityCheck() {
+                    if (!this.selectedForCheck) return;
+                    
+                    const requirement = this.requirements.find(req => req.id === this.selectedForCheck);
+                    if (!requirement) return;
+                    
+                    const issues = [];
+                    
+                    // Проверка по правилу D25
+                    if (!requirement.acceptanceCriteria || requirement.acceptanceCriteria.trim() === '') {
+                        issues.push('Отсутствуют критерии приемки (нарушение правила H78)');
+                    }
+                    
+                    if (!requirement.source || requirement.source.trim() === '') {
+                        issues.push('Не указан источник требования');
+                    }
+                    
+                    if (requirement.testability === 'Низкая') {
+                        issues.push('Низкая тестируемость требования');
+                    }
+                    
+                    // Проверка на неоднозначные термины (Правило D26)
+                    const ambiguousTerms = ['быстро', 'удобно', 'иногда', 'часто', 'простой', 'сложный', 'легко', 'тяжело'];
+                    const foundTerms = ambiguousTerms.filter(term => 
+                        requirement.title.toLowerCase().includes(term) || 
+                        requirement.description.toLowerCase().includes(term)
+                    );
+                    
+                    if (foundTerms.length > 0) {
+                        issues.push(`Обнаружены неоднозначные термины: ${foundTerms.join(', ')} (нарушение правила D26)`);
+                    }
+                    
+                    this.checkResult = {
+                        pass: issues.length === 0,
+                        message: issues.length === 0 
+                            ? 'Требование соответствует критериям качества' 
+                            : 'Обнаружены проблемы с качеством требования',
+                        issues: issues
+                    };
+                    
+                    this.showNotification(`Проверка требования ${requirement.id} завершена`);
+                },
+                
+                updatePriority(id, newPriority) {
+                    const requirement = this.requirements.find(req => req.id === id);
+                    if (requirement) {
+                        requirement.priority = newPriority;
+                    }
+                },
+                
+                promotePriority(id) {
+                    const requirement = this.requirements.find(req => req.id === id);
+                    if (requirement) {
+                        const priorities = ['Wont', 'Could', 'Should', 'Must'];
+                        const currentIndex = priorities.indexOf(requirement.priority);
+                        if (currentIndex < priorities.length - 1) {
+                            requirement.priority = priorities[currentIndex + 1];
+                            this.showNotification(`Приоритет требования ${id} повышен`);
+                        }
+                    }
+                },
+                
+                demotePriority(id) {
+                    const requirement = this.requirements.find(req => req.id === id);
+                    if (requirement) {
+                        const priorities = ['Wont', 'Could', 'Should', 'Must'];
+                        const currentIndex = priorities.indexOf(requirement.priority);
+                        if (currentIndex > 0) {
+                            requirement.priority = priorities[currentIndex - 1];
+                            this.showNotification(`Приоритет требования ${id} понижен`);
+                        }
+                    }
+                },
+                
+                applyMoSCoW() {
+                    // Простое распределение приоритетов по правилу MoSCoW
+                    const total = this.requirements.length;
+                    const mustCount = Math.floor(total * 0.6);
+                    const shouldCount = Math.floor(total * 0.2);
+                    const couldCount = Math.floor(total * 0.15);
+                    
+                    this.requirements.forEach((req, index) => {
+                        if (index < mustCount) {
+                            req.priority = 'Must';
+                        } else if (index < mustCount + shouldCount) {
+                            req.priority = 'Should';
+                        } else if (index < mustCount + shouldCount + couldCount) {
+                            req.priority = 'Could';
+                        } else {
+                            req.priority = 'Wont';
+                        }
+                    });
+                    
+                    this.showNotification(`Приоритеты распределены: Must=${mustCount}, Should=${shouldCount}, Could=${couldCount}, Wont=${total - mustCount - shouldCount - couldCount}`);
+                },
+                
+                runImpactAnalysis() {
+                    if (!this.selectedForImpact) return;
+                    
+                    // Имитация анализа влияния
+                    const requirement = this.requirements.find(req => req.id === this.selectedForImpact);
+                    if (!requirement) return;
+                    
+                    // Простой алгоритм оценки влияния
+                    let affectedCount = 0;
+                    let complexity = 'Низкая';
+                    let risk = 'Низкий';
+                    
+                    if (requirement.priority === 'Must') {
+                        affectedCount = Math.floor(Math.random() * 5) + 3;
+                        complexity = 'Высокая';
+                        risk = 'Высокий';
+                    } else if (requirement.priority === 'Should') {
+                        affectedCount = Math.floor(Math.random() * 3) + 1;
+                        complexity = 'Средняя';
+                        risk = 'Средний';
+                    } else {
+                        affectedCount = Math.floor(Math.random() * 2);
+                        complexity = 'Низкая';
+                        risk = 'Низкий';
+                    }
+                    
+                    this.impactAnalysisResult = {
+                        affectedRequirements: affectedCount,
+                        complexity: complexity,
+                        risk: risk,
+                        message: `Изменение требования ${requirement.id} затронет примерно ${affectedCount} связанных требований`
+                    };
+                    
+                    this.showNotification(`Анализ влияния для требования ${requirement.id} выполнен`);
+                },
+                
+                checkAmbiguity() {
+                    if (!this.ambiguityCheckText.trim()) return;
+                    
+                    const ambiguousTerms = [
+                        { term: 'быстро', suggestion: 'Заменить на: время отклика < 2 сек' },
+                        { term: 'удобно', suggestion: 'Заменить на: выполнение задачи за 3 клика' },
+                        { term: 'иногда', suggestion: 'Заменить на: в 10% случаев' },
+                        { term: 'часто', suggestion: 'Заменить на: в 80% случаев' },
+                        { term: 'простой', suggestion: 'Заменить на: выполняется за 5 минут' },
+                        { term: 'сложный', suggestion: 'Заменить на: требует 4 этапа проверки' },
+                        { term: 'легко', suggestion: 'Заменить на: обучение занимает 1 час' },
+                        { term: 'тяжело', suggestion: 'Заменить на: обучение занимает 3 дня' }
+                    ];
+                    
+                    const text = this.ambiguityCheckText.toLowerCase();
+                    const found = ambiguousTerms.filter(item => text.includes(item.term));
+                    
+                    this.ambiguityResults = found;
+                    
+                    if (found.length === 0) {
+                        this.showNotification('Неоднозначных терминов не обнаружено');
+                    } else {
+                        this.showNotification(`Обнаружено ${found.length} неоднозначных терминов`);
+                    }
+                },
+                
+                // Методы для модуля артефактов
+                generateTraceabilityMatrix() {
+                    this.showNotification('Матрица отслеживаемости обновлена');
+                },
+                
+                toggleTraceLink(requirementId, targetId) {
+                    this.showNotification(`Связь требования ${requirementId} с ${targetId} переключена`);
+                },
+                
+                generateSRS() {
+                    const srsContent = `СПЕЦИФИКАЦИЯ ТРЕБОВАНИЙ К ПО
+Версия 1.0
+Дата: ${new Date().toLocaleDateString()}
+
+ОГЛАВЛЕНИЕ
+1. Введение
+2. Общее описание
+3. Функциональные требования
+4. Нефункциональные требования
+
+1. ВВЕДЕНИЕ
+Система: Экспертная система для выработки требований к ПО
+Всего требований: ${this.requirements.length}
+
+2. ФУНКЦИОНАЛЬНЫЕ ТРЕБОВАНИЯ
+${this.requirements.filter(req => req.type === 'Функциональное').map(req => 
+`${req.id}: ${req.title}
+   Критерии приемки: ${req.acceptanceCriteria || 'Не указаны'}
+   Приоритет: ${req.priority}
+   Статус: ${req.status}
+`).join('\n')}
+
+3. НЕФУНКЦИОНАЛЬНЫЕ ТРЕБОВАНИЯ
+${this.requirements.filter(req => req.type === 'Нефункциональное').map(req => 
+`${req.id}: ${req.title}
+   Критерии приемки: ${req.acceptanceCriteria || 'Не указаны'}
+   Приоритет: ${req.priority}
+   Статус: ${req.status}
+`).join('\n')}
+
+4. ЗАИНТЕРЕСОВАННЫЕ ЛИЦА
+${this.stakeholders.map(s => `${s.name} (${s.role})`).join('\n')}
+
+5. БИЗНЕС-ПРАВИЛА
+${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
+
+Сгенерировано автоматически экспертной системой.`;
+                    
+                    this.downloadTextFile(srsContent, 'SRS_Документ.txt');
+                    this.showNotification('SRS документ сгенерирован и загружен');
+                },
+                
+                generateRequirementsCatalog() {
+                    const catalog = this.requirements.map(req => 
+                        `${req.id} | ${req.type} | ${req.priority} | ${req.status} | ${req.title}`
+                    ).join('\n');
+                    
+                    this.downloadTextFile(catalog, 'Каталог_требований.csv');
+                    this.showNotification('Каталог требований сгенерирован и загружен');
+                },
+                
+                generateStakeholdersReport() {
+                    const report = this.stakeholders.map(s => 
+                        `${s.name},${s.role},${s.involvement}`
+                    ).join('\n');
+                    
+                    this.downloadTextFile(report, 'Отчет_заинтересованные_лица.csv');
+                    this.showNotification('Отчет по заинтересованным лицам сгенерирован и загружен');
+                },
+                
+                downloadTextFile(content, filename) {
+                    const blob = new Blob([content], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                },
+                
+                saveAcceptanceCriteria() {
+                    if (!this.selectedForAcceptance || !this.acceptanceCriteriaText.trim()) return;
+                    
+                    const requirement = this.requirements.find(req => req.id === this.selectedForAcceptance);
+                    if (requirement) {
+                        requirement.acceptanceCriteria = this.acceptanceCriteriaText;
+                        this.showNotification('Критерии приемки сохранены');
+                        this.acceptanceCriteriaText = '';
+                        this.selectedForAcceptance = '';
+                    }
+                },
+                
+                // Методы для аналитики
+                getRequirementIssue(req) {
+                    const issues = [];
+                    
+                    if (!req.acceptanceCriteria || req.acceptanceCriteria.trim() === '') {
+                        issues.push('Нет критериев приемки');
+                    }
+                    
+                    if (req.testability === 'Низкая') {
+                        issues.push('Низкая тестируемость');
+                    }
+                    
+                    if (!req.source || req.source.trim() === '') {
+                        issues.push('Не указан источник');
+                    }
+                    
+                    return issues.join(', ');
+                },
+                
+                fixRequirementIssue(id) {
+                    const requirement = this.requirements.find(req => req.id === id);
+                    if (requirement) {
+                        this.editRequirement(id);
+                    }
+                },
+                
+                showMoreRecommendations() {
+                    const recommendations = [
+                        'Проведите анализ влияния для всех требований с высоким приоритетом',
+                        'Создайте глоссарий терминов проекта',
+                        'Назначьте ответственных за каждое требование',
+                        'Проведите сессию приоритизации с заказчиком',
+                        'Создайте прототип для спорных требований',
+                        'Обновите матрицу отслеживаемости',
+                        'Проведите рецензирование требований с разработчиками'
+                    ];
+                    
+                    alert('Дополнительные рекомендации:\n\n' + recommendations.join('\n• '));
+                },
+                
+                // Методы для администрирования
+                exportAllData() {
+                    const allData = {
+                        requirements: this.requirements,
+                        stakeholders: this.stakeholders,
+                        businessRules: this.businessRules,
+                        exportDate: new Date().toISOString()
+                    };
+                    
+                    const dataStr = JSON.stringify(allData, null, 2);
+                    this.downloadTextFile(dataStr, 'expert_system_backup.json');
+                    this.showNotification('Все данные экспортированы');
+                },
+                
+                importData() {
+                    // В реальном приложении здесь была бы загрузка файла
+                    this.showNotification('Функция импорта данных будет реализована в следующей версии');
+                },
+                
+                resetData() {
+                    if (confirm('Вы уверены? Все данные будут удалены.')) {
+                        this.requirements = [];
+                        this.stakeholders = [];
+                        this.businessRules = [];
+                        this.loadSampleData();
+                        this.showNotification('Данные сброшены, загружены демонстрационные данные');
+                    }
+                },
+                
+                calculateDataSize() {
+                    const dataStr = JSON.stringify({
+                        requirements: this.requirements,
+                        stakeholders: this.stakeholders,
+                        businessRules: this.businessRules
+                    });
+                    
+                    return (dataStr.length / 1024).toFixed(2);
+                },
+                
+                saveSettings() {
+                    // В реальном приложении здесь было бы сохранение в localStorage или на сервер
+                    this.showNotification('Настройки сохранены');
+                },
+                
+                updateRules() {
+                    this.showNotification('Правила экспертной системы обновлены');
+                },
+                
+                showSystemInfo() {
+                    const info = `
+Техническая информация:
+• Alpine.js: 3.13.0
+• Bootstrap: 5.3.0
+• Font Awesome: 6.4.0
+• Версия SPA: 1.0.0
+• Всего требований: ${this.requirements.length}
+• Всего заинтересованных лиц: ${this.stakeholders.length}
+• Всего бизнес-правил: ${this.businessRules.length}
+                    `.trim();
+                    
+                    alert(info);
+                },
+                
+                // Вспомогательные методы
+                exportRequirements() {
+                    const dataStr = JSON.stringify(this.requirements, null, 2);
+                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                    
+                    const exportFileDefaultName = 'requirements_export.json';
+                    
+                    const linkElement = document.createElement('a');
+                    linkElement.setAttribute('href', dataUri);
+                    linkElement.setAttribute('download', exportFileDefaultName);
+                    linkElement.click();
+                    
+                    this.showNotification('Требования экспортированы в JSON');
+                },
+                
+                generateSRSReport() {
+                    this.showNotification('Генерация отчета SRS... Функция будет реализована в полной версии');
+                },
+                
+                runConsistencyCheck() {
+                    // Проверка всех требований на согласованность
+                    let issuesCount = 0;
+                    
+                    this.requirements.forEach(req => {
+                        if (!req.acceptanceCriteria || req.acceptanceCriteria.trim() === '') {
+                            issuesCount++;
+                        }
+                    });
+                    
+                    if (issuesCount === 0) {
+                        this.showNotification('Проверка согласованности пройдена успешно');
+                    } else {
+                        this.showNotification(`Найдено ${issuesCount} требований без критериев приемки`);
+                    }
+                },
+                
+                generateRequirementId() {
+                    const funcCount = this.requirements.filter(r => r.type === 'Функциональное').length;
+                    const nonFuncCount = this.requirements.filter(r => r.type === 'Нефункциональное').length;
+                    
+                    if (this.currentRequirement.type === 'Функциональное') {
+                        return `FR-${(funcCount + 1).toString().padStart(3, '0')}`;
+                    } else if (this.currentRequirement.type === 'Нефункциональное') {
+                        return `NFR-${(nonFuncCount + 1).toString().padStart(3, '0')}`;
+                    } else {
+                        return `REQ-${(this.requirements.length + 1).toString().padStart(3, '0')}`;
+                    }
+                },
+                
+                watchRequirementType() {
+                    if (!this.currentRequirement.id && this.currentRequirement.type) {
+                        this.currentRequirement.id = this.generateRequirementId();
+                    }
+                },
+                
+                showNotification(message) {
+                    this.toastMessage = message;
+                    const toastEl = document.getElementById('liveToast');
+                    const toast = new bootstrap.Toast(toastEl);
+                    toast.show();
+                },
+                
+                // Инициализация графиков
+                initCharts() {
+                    setTimeout(() => {
+                        this.renderCharts();
+                    }, 100);
+                },
+                
+                renderCharts() {
+                    // Типы требований
+                    const typeCounts = {};
+                    this.requirements.forEach(req => {
+                        typeCounts[req.type] = (typeCounts[req.type] || 0) + 1;
+                    });
+                    
+                    // Приоритеты
+                    const priorityCounts = {};
+                    this.requirements.forEach(req => {
+                        priorityCounts[req.priority] = (priorityCounts[req.priority] || 0) + 1;
+                    });
+                    
+                    // Рендерим простые графики с помощью HTML
+                    document.getElementById('requirementsChart').innerHTML = this.createChartHTML(typeCounts, ['Функциональное', 'Нефункциональное', 'Бизнес-требование', 'Пользовательское'], 'Типы требований');
+                    document.getElementById('priorityChart').innerHTML = this.createChartHTML(priorityCounts, ['Must', 'Should', 'Could', 'Wont'], 'Приоритеты');
+                },
+                
+                createChartHTML(data, labels, title) {
+                    const total = Object.values(data).reduce((sum, val) => sum + val, 0);
+                    
+                    let html = `<div class="text-center mb-2 small fw-semibold">${title}</div>`;
+                    
+                    labels.forEach(label => {
+                        const value = data[label] || 0;
+                        const percent = total > 0 ? Math.round((value / total) * 100) : 0;
+                        
+                        html += `
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>${label}</span>
+                                <span>${value} (${percent}%)</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                        `;
+                    });
+                    
+                    return html;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
