@@ -191,6 +191,52 @@
             padding-bottom: 10px;
         }
         
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1050;
+            overflow-y: auto;
+        }
+        
+        .modal.show {
+            display: block;
+        }
+        
+        .modal-dialog {
+            position: relative;
+            width: auto;
+            margin: 1.75rem auto;
+            pointer-events: none;
+        }
+        
+        .modal-content {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            pointer-events: auto;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid rgba(0,0,0,.2);
+            border-radius: 0.5rem;
+            outline: 0;
+        }
+        
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1040;
+        }
+        
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
@@ -209,6 +255,8 @@
                 padding-left: 15px !important;
             }
         }
+        
+        [x-cloak] { display: none !important; }
     </style>
 </head>
 <body>
@@ -276,15 +324,15 @@
                         
                         <div class="fw-bold text-uppercase small mb-2 text-muted mt-3">Быстрые действия</div>
                         
-                        <button class="btn btn-sm btn-outline-primary mb-2" @click="showAddRequirementModal = true; mobileMenuOpen = false">
+                        <button class="btn btn-sm btn-outline-primary mb-2" @click="addRequirement()">
                             <i class="fas fa-plus me-1"></i> Новое требование
                         </button>
                         
-                        <button class="btn btn-sm btn-outline-success mb-2" @click="generateSRSReport(); mobileMenuOpen = false">
+                        <button class="btn btn-sm btn-outline-success mb-2" @click="generateSRSReport()">
                             <i class="fas fa-file-export me-1"></i> Сгенерировать SRS
                         </button>
                         
-                        <button class="btn btn-sm btn-outline-info mb-2" @click="runConsistencyCheck(); mobileMenuOpen = false">
+                        <button class="btn btn-sm btn-outline-info mb-2" @click="runConsistencyCheck()">
                             <i class="fas fa-search me-1"></i> Проверить согласованность
                         </button>
                     </nav>
@@ -357,7 +405,7 @@
                     
                     <div class="fw-bold text-uppercase small mb-2 text-muted mt-3">Быстрые действия</div>
                     
-                    <button class="btn btn-sm btn-outline-primary mb-2" @click="showAddRequirementModal = true; mobileMenuOpen = false">
+                    <button class="btn btn-sm btn-outline-primary mb-2" @click="addRequirement(); mobileMenuOpen = false">
                         <i class="fas fa-plus me-1"></i> Новое требование
                     </button>
                     
@@ -395,7 +443,7 @@
             <!-- Основное содержимое -->
             <div class="col-lg-10 col-md-12 py-3 main-content">
                 <!-- Дашборд -->
-                <div x-show="activeModule === 'dashboard'" x-transition>
+                <div x-show="activeModule === 'dashboard'" x-transition x-cloak>
                     <h4 class="mb-3"><i class="fas fa-tachometer-alt me-2"></i>Дашборд проекта</h4>
                     
                     <div class="row">
@@ -464,27 +512,15 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="timeline">
-                                        <div class="timeline-item mb-3">
-                                            <div class="timeline-marker bg-primary"></div>
-                                            <div class="timeline-content">
-                                                <div class="small fw-semibold">Добавлено требование FR-003</div>
-                                                <div class="text-muted small">2 часа назад</div>
+                                        <template x-for="(activity, index) in activities.slice(0, 5)" :key="index">
+                                            <div class="timeline-item mb-3">
+                                                <div class="timeline-marker" :class="activity.type === 'requirement' ? 'bg-primary' : activity.type === 'stakeholder' ? 'bg-success' : 'bg-info'"></div>
+                                                <div class="timeline-content">
+                                                    <div class="small fw-semibold" x-text="activity.message"></div>
+                                                    <div class="text-muted small" x-text="formatDate(activity.timestamp)"></div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="timeline-item mb-3">
-                                            <div class="timeline-marker bg-success"></div>
-                                            <div class="timeline-content">
-                                                <div class="small fw-semibold">Утверждено требование FR-001</div>
-                                                <div class="text-muted small">Вчера, 15:30</div>
-                                            </div>
-                                        </div>
-                                        <div class="timeline-item">
-                                            <div class="timeline-marker bg-info"></div>
-                                            <div class="timeline-content">
-                                                <div class="small fw-semibold">Добавлен новый заинтересованный</div>
-                                                <div class="text-muted small">2 дня назад</div>
-                                            </div>
-                                        </div>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
@@ -548,7 +584,7 @@
                                             <i class="fas fa-plus-circle fa-2x text-primary mb-3"></i>
                                             <h6>Добавить требование</h6>
                                             <p class="small text-muted">Создайте новое требование для проекта</p>
-                                            <button class="btn btn-sm btn-primary" @click="showAddRequirementModal = true">
+                                            <button class="btn btn-sm btn-primary" @click="addRequirement()">
                                                 Создать требование
                                             </button>
                                         </div>
@@ -561,7 +597,7 @@
                                             <i class="fas fa-users fa-2x text-success mb-3"></i>
                                             <h6>Добавить заинтересованное лицо</h6>
                                             <p class="small text-muted">Определите участников проекта</p>
-                                            <button class="btn btn-sm btn-success" @click="showAddStakeholderModal = true">
+                                            <button class="btn btn-sm btn-success" @click="addStakeholder()">
                                                 Добавить участника
                                             </button>
                                         </div>
@@ -586,228 +622,232 @@
                 </div>
                 
                 <!-- Управление сущностями -->
-                <div x-show="activeModule === 'entities'" x-transition>
+                <div x-show="activeModule === 'entities'" x-transition x-cloak>
                     <h4 class="mb-3"><i class="fas fa-cube me-2"></i>Управление сущностями онтологии</h4>
                     
                     <ul class="nav nav-tabs mb-3" id="entitiesTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="requirements-tab" data-bs-toggle="tab" data-bs-target="#requirements" type="button" role="tab">
+                            <button class="nav-link" :class="{active: activeEntityTab === 'requirements'}" @click="activeEntityTab = 'requirements'">
                                 <i class="fas fa-list-check me-1"></i> Требования
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="stakeholders-tab" data-bs-toggle="tab" data-bs-target="#stakeholders" type="button" role="tab">
+                            <button class="nav-link" :class="{active: activeEntityTab === 'stakeholders'}" @click="activeEntityTab = 'stakeholders'">
                                 <i class="fas fa-users me-1"></i> Заинтересованные лица
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab">
+                            <button class="nav-link" :class="{active: activeEntityTab === 'rules'}" @click="activeEntityTab = 'rules'">
                                 <i class="fas fa-gavel me-1"></i> Бизнес-правила
                             </button>
                         </li>
                     </ul>
                     
-                    <div class="tab-content" id="entitiesTabContent">
-                        <!-- Вкладка требований -->
-                        <div class="tab-pane fade show active" id="requirements" role="tabpanel">
-                            <div class="d-flex justify-content-between mb-3">
-                                <div class="btn-group">
-                                    <button class="btn btn-sm btn-primary" @click="showAddRequirementModal = true">
-                                        <i class="fas fa-plus me-1"></i> Добавить требование
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary" @click="exportRequirements()">
-                                        <i class="fas fa-download me-1"></i> Экспорт
-                                    </button>
-                                </div>
-                                <div class="input-group input-group-sm" style="width: 300px;">
-                                    <input type="text" class="form-control" placeholder="Поиск требований..." x-model="requirementsSearch">
-                                    <button class="btn btn-outline-secondary" type="button">
-                                        <i class="fas fa-search"></i>
-                                    </button>
-                                </div>
+                    <!-- Вкладка требований -->
+                    <div x-show="activeEntityTab === 'requirements'" x-transition>
+                        <div class="d-flex justify-content-between mb-3">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" @click="addRequirement()">
+                                    <i class="fas fa-plus me-1"></i> Добавить требование
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" @click="exportRequirements()">
+                                    <i class="fas fa-download me-1"></i> Экспорт
+                                </button>
                             </div>
-                            
-                            <!-- Фильтры -->
-                            <div class="card mb-3">
-                                <div class="card-body py-2">
-                                    <div class="row g-2">
-                                        <div class="col-auto">
-                                            <select class="form-select form-select-sm" x-model="filterPriority">
-                                                <option value="">Все приоритеты</option>
-                                                <option value="Must">Must</option>
-                                                <option value="Should">Should</option>
-                                                <option value="Could">Could</option>
-                                                <option value="Wont">Wont</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-auto">
-                                            <select class="form-select form-select-sm" x-model="filterType">
-                                                <option value="">Все типы</option>
-                                                <option value="Функциональное">Функциональное</option>
-                                                <option value="Нефункциональное">Нефункциональное</option>
-                                                <option value="Бизнес-требование">Бизнес-требование</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-auto">
-                                            <select class="form-select form-select-sm" x-model="filterStatus">
-                                                <option value="">Все статусы</option>
-                                                <option value="Предложено">Предложено</option>
-                                                <option value="Утверждено">Утверждено</option>
-                                                <option value="В работе">В работе</option>
-                                                <option value="Реализовано">Реализовано</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-auto ms-auto">
-                                            <button class="btn btn-sm btn-outline-secondary" @click="clearFilters()">
-                                                <i class="fas fa-times me-1"></i> Сбросить фильтры
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Список требований -->
-                            <div class="row">
-                                <template x-for="requirement in filteredRequirements" :key="requirement.id">
-                                    <div class="col-md-6 mb-3">
-                                        <div class="card requirement-card" 
-                                             :class="'priority-' + requirement.priority.toLowerCase()">
-                                            <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 class="card-title mb-0" x-text="requirement.title"></h6>
-                                                    <div class="dropdown">
-                                                        <button class="btn btn-sm btn-link text-decoration-none" type="button" data-bs-toggle="dropdown">
-                                                            <i class="fas fa-ellipsis-v"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end">
-                                                            <li><a class="dropdown-item" href="#" @click="editRequirement(requirement.id)">Редактировать</a></li>
-                                                            <li><a class="dropdown-item" href="#" @click="deleteRequirement(requirement.id)">Удалить</a></li>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                            <li><a class="dropdown-item" href="#" @click="changeStatus(requirement.id, 'Утверждено')">Утвердить</a></li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="mb-2">
-                                                    <span class="badge bg-primary me-1" x-text="requirement.type"></span>
-                                                    <span class="badge" 
-                                                          :class="{
-                                                            'bg-danger': requirement.priority === 'Must',
-                                                            'bg-warning': requirement.priority === 'Should',
-                                                            'bg-info': requirement.priority === 'Could',
-                                                            'bg-secondary': requirement.priority === 'Wont'
-                                                          }"
-                                                          x-text="requirement.priority"></span>
-                                                    <span class="badge bg-light text-dark border ms-1 status-badge" x-text="requirement.status"></span>
-                                                </div>
-                                                
-                                                <p class="card-text small text-muted mb-2" x-text="requirement.description"></p>
-                                                
-                                                <div class="small">
-                                                    <div class="d-flex justify-content-between">
-                                                        <span><i class="fas fa-user me-1"></i> <span x-text="requirement.source"></span></span>
-                                                        <span><i class="fas fa-check-circle me-1"></i> <span x-text="requirement.testability"></span></span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                            
-                            <div x-show="filteredRequirements.length === 0" class="text-center py-5">
-                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">Требования не найдены</p>
-                                <button class="btn btn-sm btn-primary" @click="showAddRequirementModal = true">
-                                    <i class="fas fa-plus me-1"></i> Добавить первое требование
+                            <div class="input-group input-group-sm" style="width: 300px;">
+                                <input type="text" class="form-control" placeholder="Поиск требований..." x-model="requirementsSearch" @input="filterRequirements()">
+                                <button class="btn btn-outline-secondary" type="button">
+                                    <i class="fas fa-search"></i>
                                 </button>
                             </div>
                         </div>
                         
-                        <!-- Вкладка заинтересованных лиц -->
-                        <div class="tab-pane fade" id="stakeholders" role="tabpanel">
-                            <div class="d-flex justify-content-between mb-3">
-                                <button class="btn btn-sm btn-primary" @click="showAddStakeholderModal = true">
-                                    <i class="fas fa-user-plus me-1"></i> Добавить лицо
-                                </button>
+                        <!-- Фильтры -->
+                        <div class="card mb-3">
+                            <div class="card-body py-2">
+                                <div class="row g-2">
+                                    <div class="col-auto">
+                                        <select class="form-select form-select-sm" x-model="filterPriority" @change="filterRequirements()">
+                                            <option value="">Все приоритеты</option>
+                                            <option value="Must">Must</option>
+                                            <option value="Should">Should</option>
+                                            <option value="Could">Could</option>
+                                            <option value="Wont">Wont</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <select class="form-select form-select-sm" x-model="filterType" @change="filterRequirements()">
+                                            <option value="">Все типы</option>
+                                            <option value="Функциональное">Функциональное</option>
+                                            <option value="Нефункциональное">Нефункциональное</option>
+                                            <option value="Бизнес-требование">Бизнес-требование</option>
+                                            <option value="Пользовательское">Пользовательское</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <select class="form-select form-select-sm" x-model="filterStatus" @change="filterRequirements()">
+                                            <option value="">Все статусы</option>
+                                            <option value="Предложено">Предложено</option>
+                                            <option value="Утверждено">Утверждено</option>
+                                            <option value="В работе">В работе</option>
+                                            <option value="Реализовано">Реализовано</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-auto ms-auto">
+                                        <button class="btn btn-sm btn-outline-secondary" @click="clearFilters()">
+                                            <i class="fas fa-times me-1"></i> Сбросить фильтры
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
+                        </div>
+                        
+                        <!-- Список требований -->
+                        <div class="row">
+                            <template x-for="requirement in filteredRequirements" :key="requirement.id">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card requirement-card" 
+                                         :class="'priority-' + requirement.priority.toLowerCase()">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="card-title mb-0" x-text="requirement.title"></h6>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-link text-decoration-none" type="button" data-bs-toggle="dropdown">
+                                                        <i class="fas fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li><a class="dropdown-item" href="#" @click="editRequirement(requirement.id)">Редактировать</a></li>
+                                                        <li><a class="dropdown-item" href="#" @click="deleteRequirement(requirement.id)">Удалить</a></li>
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li><a class="dropdown-item" href="#" @click="changeStatus(requirement.id, 'Утверждено')">Утвердить</a></li>
+                                                        <li><a class="dropdown-item" href="#" @click="changeStatus(requirement.id, 'В работе')">В работу</a></li>
+                                                        <li><a class="dropdown-item" href="#" @click="changeStatus(requirement.id, 'Реализовано')">Реализовано</a></li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-2">
+                                                <span class="badge bg-primary me-1" x-text="requirement.type"></span>
+                                                <span class="badge" 
+                                                      :class="{
+                                                        'bg-danger': requirement.priority === 'Must',
+                                                        'bg-warning': requirement.priority === 'Should',
+                                                        'bg-info': requirement.priority === 'Could',
+                                                        'bg-secondary': requirement.priority === 'Wont'
+                                                      }"
+                                                      x-text="requirement.priority"></span>
+                                                <span class="badge bg-light text-dark border ms-1 status-badge" x-text="requirement.status"></span>
+                                            </div>
+                                            
+                                            <p class="card-text small text-muted mb-2" x-text="requirement.description"></p>
+                                            
+                                            <div class="small">
+                                                <div class="d-flex justify-content-between">
+                                                    <span><i class="fas fa-user me-1"></i> <span x-text="requirement.source"></span></span>
+                                                    <span><i class="fas fa-check-circle me-1"></i> <span x-text="requirement.testability"></span></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <div x-show="filteredRequirements.length === 0" class="text-center py-5">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">Требования не найдены</p>
+                            <button class="btn btn-sm btn-primary" @click="addRequirement()">
+                                <i class="fas fa-plus me-1"></i> Добавить первое требование
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Вкладка заинтересованных лиц -->
+                    <div x-show="activeEntityTab === 'stakeholders'" x-transition>
+                        <div class="d-flex justify-content-between mb-3">
+                            <button class="btn btn-sm btn-primary" @click="addStakeholder()">
+                                <i class="fas fa-user-plus me-1"></i> Добавить лицо
+                            </button>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Имя</th>
+                                        <th>Роль</th>
+                                        <th>Вовлеченность</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="stakeholder in stakeholders" :key="stakeholder.id">
                                         <tr>
-                                            <th>Имя</th>
-                                            <th>Роль</th>
-                                            <th>Вовлеченность</th>
-                                            <th>Действия</th>
+                                            <td x-text="stakeholder.name"></td>
+                                            <td>
+                                                <span class="badge bg-light text-dark" x-text="stakeholder.role"></span>
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 5px;">
+                                                    <div class="progress-bar" :class="{
+                                                        'bg-success': stakeholder.involvement === 'Высокая',
+                                                        'bg-warning': stakeholder.involvement === 'Средняя',
+                                                        'bg-secondary': stakeholder.involvement === 'Низкая'
+                                                    }" :style="'width: ' + (stakeholder.involvement === 'Высокая' ? '100' : stakeholder.involvement === 'Средняя' ? '60' : '30') + '%'"></div>
+                                                </div>
+                                                <small class="text-muted" x-text="stakeholder.involvement"></small>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" @click="editStakeholder(stakeholder.id)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger ms-1" @click="deleteStakeholder(stakeholder.id)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="stakeholder in stakeholders" :key="stakeholder.id">
-                                            <tr>
-                                                <td x-text="stakeholder.name"></td>
-                                                <td>
-                                                    <span class="badge bg-light text-dark" x-text="stakeholder.role"></span>
-                                                </td>
-                                                <td>
-                                                    <div class="progress" style="height: 5px;">
-                                                        <div class="progress-bar" :class="{
-                                                            'bg-success': stakeholder.involvement === 'Высокая',
-                                                            'bg-warning': stakeholder.involvement === 'Средняя',
-                                                            'bg-secondary': stakeholder.involvement === 'Низкая'
-                                                        }" :style="'width: ' + (stakeholder.involvement === 'Высокая' ? '100' : stakeholder.involvement === 'Средняя' ? '60' : '30') + '%'"></div>
-                                                    </div>
-                                                    <small class="text-muted" x-text="stakeholder.involvement"></small>
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-primary" @click="editStakeholder(stakeholder.id)">
-                                                        <i class="fas fa-edit"></i>
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-danger ms-1" @click="deleteStakeholder(stakeholder.id)">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Вкладка бизнес-правил -->
+                    <div x-show="activeEntityTab === 'rules'" x-transition>
+                        <div class="d-flex justify-content-between mb-3">
+                            <button class="btn btn-sm btn-primary" @click="addRule()">
+                                <i class="fas fa-plus-circle me-1"></i> Добавить правило
+                            </button>
                         </div>
                         
-                        <!-- Вкладка бизнес-правил -->
-                        <div class="tab-pane fade" id="rules" role="tabpanel">
-                            <div class="d-flex justify-content-between mb-3">
-                                <button class="btn btn-sm btn-primary" @click="showAddRuleModal = true">
-                                    <i class="fas fa-plus-circle me-1"></i> Добавить правило
-                                </button>
-                            </div>
-                            
-                            <div class="row">
-                                <template x-for="rule in businessRules" :key="rule.id">
-                                    <div class="col-md-6 mb-3">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-start">
-                                                    <h6 class="card-title mb-1" x-text="rule.id"></h6>
-                                                    <span class="badge bg-info" x-text="rule.type"></span>
-                                                </div>
-                                                <p class="card-text small" x-text="rule.description"></p>
-                                                <div class="d-flex justify-content-end">
-                                                    <button class="btn btn-sm btn-outline-primary" @click="editRule(rule.id)">
-                                                        <i class="fas fa-edit me-1"></i> Редактировать
-                                                    </button>
-                                                </div>
+                        <div class="row">
+                            <template x-for="rule in businessRules" :key="rule.id">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <h6 class="card-title mb-1" x-text="rule.id"></h6>
+                                                <span class="badge bg-info" x-text="rule.type"></span>
+                                            </div>
+                                            <p class="card-text small" x-text="rule.description"></p>
+                                            <div class="d-flex justify-content-end">
+                                                <button class="btn btn-sm btn-outline-primary" @click="editRule(rule.id)">
+                                                    <i class="fas fa-edit me-1"></i> Редактировать
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger ms-1" @click="deleteRule(rule.id)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
-                                </template>
-                            </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Процессы работы -->
-                <div x-show="activeModule === 'processes'" x-transition>
+                <div x-show="activeModule === 'processes'" x-transition x-cloak>
                     <h4 class="mb-3"><i class="fas fa-cogs me-2"></i>Процессы работы с требованиями</h4>
                     
                     <div class="row">
@@ -943,14 +983,18 @@
                                         </select>
                                     </div>
                                     
-                                    <template x-if="selectedForImpact && impactAnalysisResult">
+                                    <template x-if="selectedForImpact">
                                         <div>
-                                            <div class="alert alert-info">
+                                            <div class="alert" :class="{
+                                                'alert-info': impactAnalysisResult && impactAnalysisResult.risk === 'Низкий',
+                                                'alert-warning': impactAnalysisResult && impactAnalysisResult.risk === 'Средний',
+                                                'alert-danger': impactAnalysisResult && impactAnalysisResult.risk === 'Высокий'
+                                            }">
                                                 <h6 class="alert-heading">Анализ влияния</h6>
                                                 <div class="small">
-                                                    <div>Затронутых требований: <span x-text="impactAnalysisResult.affectedRequirements"></span></div>
-                                                    <div>Оценка сложности: <span x-text="impactAnalysisResult.complexity"></span></div>
-                                                    <div>Риск реализации: <span x-text="impactAnalysisResult.risk"></span></div>
+                                                    <div>Затронутых требований: <span x-text="impactAnalysisResult ? impactAnalysisResult.affectedRequirements : 0"></span></div>
+                                                    <div>Оценка сложности: <span x-text="impactAnalysisResult ? impactAnalysisResult.complexity : 'Не оценено'"></span></div>
+                                                    <div>Риск реализации: <span x-text="impactAnalysisResult ? impactAnalysisResult.risk : 'Не оценено'"></span></div>
                                                 </div>
                                             </div>
                                             
@@ -998,7 +1042,7 @@
                 </div>
                 
                 <!-- Артефакты -->
-                <div x-show="activeModule === 'artifacts'" x-transition>
+                <div x-show="activeModule === 'artifacts'" x-transition x-cloak>
                     <h4 class="mb-3"><i class="fas fa-file-alt me-2"></i>Управление артефактами</h4>
                     
                     <div class="row">
@@ -1034,11 +1078,11 @@
                                                             <td class="text-center align-middle">
                                                                 <div class="trace-matrix-cell mx-auto" 
                                                                      :class="{
-                                                                        'bg-success': Math.random() > 0.5,
-                                                                        'bg-light': Math.random() <= 0.5
+                                                                        'bg-success': requirement.status === 'Утверждено' || requirement.status === 'Реализовано',
+                                                                        'bg-light': requirement.status === 'Предложено'
                                                                      }"
                                                                      @click="toggleTraceLink(requirement.id, 'stakeholder-' + stakeholder.id)">
-                                                                    <i class="fas" :class="Math.random() > 0.5 ? 'fa-check' : 'fa-minus'"></i>
+                                                                    <i class="fas" :class="requirement.status === 'Утверждено' || requirement.status === 'Реализовано' ? 'fa-check' : 'fa-minus'"></i>
                                                                 </div>
                                                             </td>
                                                         </template>
@@ -1143,27 +1187,15 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="timeline">
-                                        <div class="timeline-item mb-3">
-                                            <div class="timeline-marker bg-primary"></div>
-                                            <div class="timeline-content">
-                                                <div class="small fw-semibold">Добавлено требование FR-003</div>
-                                                <div class="text-muted small">2 часа назад</div>
+                                        <template x-for="(activity, index) in activities.slice(0, 3)" :key="index">
+                                            <div class="timeline-item mb-3">
+                                                <div class="timeline-marker" :class="activity.type === 'requirement' ? 'bg-primary' : activity.type === 'stakeholder' ? 'bg-success' : 'bg-info'"></div>
+                                                <div class="timeline-content">
+                                                    <div class="small fw-semibold" x-text="activity.message"></div>
+                                                    <div class="text-muted small" x-text="formatDate(activity.timestamp)"></div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="timeline-item mb-3">
-                                            <div class="timeline-marker bg-success"></div>
-                                            <div class="timeline-content">
-                                                <div class="small fw-semibold">Утверждено требование FR-001</div>
-                                                <div class="text-muted small">Вчера, 15:30</div>
-                                            </div>
-                                        </div>
-                                        <div class="timeline-item">
-                                            <div class="timeline-marker bg-info"></div>
-                                            <div class="timeline-content">
-                                                <div class="small fw-semibold">Добавлен новый заинтересованный</div>
-                                                <div class="text-muted small">2 дня назад</div>
-                                            </div>
-                                        </div>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
@@ -1203,7 +1235,7 @@
                 </div>
                 
                 <!-- Аналитика -->
-                <div x-show="activeModule === 'analytics'" x-transition>
+                <div x-show="activeModule === 'analytics'" x-transition x-cloak>
                     <h4 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Аналитика и отчетность</h4>
                     
                     <div class="row">
@@ -1319,20 +1351,12 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="mb-3">
-                                        <div class="alert alert-info py-2">
-                                            <i class="fas fa-lightbulb me-2"></i>
-                                            <span>Проведите рецензирование требований с разработчиками (Правило D38)</span>
-                                        </div>
-                                        
-                                        <div class="alert alert-info py-2">
-                                            <i class="fas fa-lightbulb me-2"></i>
-                                            <span>Создайте прототип для спорных требований (Правило I80)</span>
-                                        </div>
-                                        
-                                        <div class="alert alert-info py-2">
-                                            <i class="fas fa-lightbulb me-2"></i>
-                                            <span>Обновите матрицу отслеживаемости (Правило H77)</span>
-                                        </div>
+                                        <template x-for="recommendation in recommendations.slice(0, 3)" :key="recommendation.id">
+                                            <div class="alert alert-info py-2 mb-2">
+                                                <i class="fas fa-lightbulb me-2"></i>
+                                                <span x-text="recommendation.text"></span>
+                                            </div>
+                                        </template>
                                     </div>
                                     
                                     <button class="btn btn-sm btn-outline-primary w-100" @click="showMoreRecommendations()">
@@ -1345,7 +1369,7 @@
                 </div>
                 
                 <!-- Администрирование -->
-                <div x-show="activeModule === 'admin'" x-transition>
+                <div x-show="activeModule === 'admin'" x-transition x-cloak>
                     <h4 class="mb-3"><i class="fas fa-sliders-h me-2"></i>Администрирование системы</h4>
                     
                     <div class="row">
@@ -1361,7 +1385,8 @@
                                             <button class="btn btn-sm btn-outline-primary" @click="exportAllData()">
                                                 <i class="fas fa-download me-1"></i> Экспортировать все данные
                                             </button>
-                                            <button class="btn btn-sm btn-outline-success" @click="importData()">
+                                            <input type="file" id="importFile" class="d-none" accept=".json" @change="importData($event)">
+                                            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('importFile').click()">
                                                 <i class="fas fa-upload me-1"></i> Импортировать данные
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger" @click="resetData()">
@@ -1383,7 +1408,7 @@
                                             </div>
                                             <div class="d-flex justify-content-between">
                                                 <span>Дата последнего изменения:</span>
-                                                <span class="fw-bold" x-text="new Date().toLocaleDateString()"></span>
+                                                <span class="fw-bold" x-text="lastModifiedDate"></span>
                                             </div>
                                         </div>
                                     </div>
@@ -1436,19 +1461,19 @@
                                         <h6>Активные правила</h6>
                                         <div class="small">
                                             <div class="form-check mb-1">
-                                                <input class="form-check-input" type="checkbox" id="ruleD25" checked>
+                                                <input class="form-check-input" type="checkbox" id="ruleD25" x-model="activeRules.D25">
                                                 <label class="form-check-label" for="ruleD25">Правило D25: Проверка атомарности требований</label>
                                             </div>
                                             <div class="form-check mb-1">
-                                                <input class="form-check-input" type="checkbox" id="ruleD26" checked>
+                                                <input class="form-check-input" type="checkbox" id="ruleD26" x-model="activeRules.D26">
                                                 <label class="form-check-label" for="ruleD26">Правило D26: Проверка неоднозначных терминов</label>
                                             </div>
                                             <div class="form-check mb-1">
-                                                <input class="form-check-input" type="checkbox" id="ruleH78" checked>
+                                                <input class="form-check-input" type="checkbox" id="ruleH78" x-model="activeRules.H78">
                                                 <label class="form-check-label" for="ruleH78">Правило H78: Критерии приемки обязательны</label>
                                             </div>
                                             <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="ruleI80" checked>
+                                                <input class="form-check-input" type="checkbox" id="ruleI80" x-model="activeRules.I80">
                                                 <label class="form-check-label" for="ruleI80">Правило I80: Прототипирование спорных требований</label>
                                             </div>
                                         </div>
@@ -1487,7 +1512,7 @@
                                         </div>
                                         <div class="d-flex justify-content-between mb-1">
                                             <span>Дата сборки:</span>
-                                            <span x-text="new Date().toLocaleDateString()"></span>
+                                            <span x-text="buildDate"></span>
                                         </div>
                                         <div class="d-flex justify-content-between">
                                             <span>Лицензия:</span>
@@ -1514,7 +1539,7 @@
     <!-- Модальные окна -->
     
     <!-- Модальное окно добавления/редактирования требования -->
-    <div class="modal fade" id="requirementModal" tabindex="-1" aria-hidden="true" x-show="showAddRequirementModal" @keydown.escape="showAddRequirementModal = false">
+    <div class="modal" x-show="showAddRequirementModal" x-cloak @click.self="showAddRequirementModal = false">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1532,7 +1557,7 @@
                                     <input type="text" class="form-control" id="reqId" 
                                            x-model="currentRequirement.id" required>
                                     <button class="btn btn-outline-secondary" type="button" 
-                                            @click="currentRequirement.id = generateRequirementId()">
+                                            @click="generateRequirementId()">
                                         <i class="fas fa-sync"></i>
                                     </button>
                                 </div>
@@ -1546,8 +1571,7 @@
                             <div class="col-md-4">
                                 <label for="reqType" class="form-label">Тип</label>
                                 <select class="form-select" id="reqType" 
-                                        x-model="currentRequirement.type"
-                                        @change="watchRequirementType()">
+                                        x-model="currentRequirement.type">
                                     <option value="Функциональное">Функциональное</option>
                                     <option value="Нефункциональное">Нефункциональное</option>
                                     <option value="Бизнес-требование">Бизнес-требование</option>
@@ -1644,11 +1668,11 @@
     </div>
     
     <!-- Модальное окно для заинтересованных лиц -->
-    <div class="modal fade" id="stakeholderModal" tabindex="-1" aria-hidden="true" x-show="showAddStakeholderModal" @keydown.escape="showAddStakeholderModal = false">
+    <div class="modal" x-show="showAddStakeholderModal" x-cloak @click.self="showAddStakeholderModal = false">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Добавление заинтересованного лица</h5>
+                    <h5 class="modal-title" x-text="currentStakeholder.id ? 'Редактирование заинтересованного лица' : 'Добавление заинтересованного лица'"></h5>
                     <button type="button" class="btn-close" @click="showAddStakeholderModal = false"></button>
                 </div>
                 <div class="modal-body">
@@ -1686,11 +1710,11 @@
     </div>
     
     <!-- Модальное окно для бизнес-правил -->
-    <div class="modal fade" id="ruleModal" tabindex="-1" aria-hidden="true" x-show="showAddRuleModal" @keydown.escape="showAddRuleModal = false">
+    <div class="modal" x-show="showAddRuleModal" x-cloak @click.self="showAddRuleModal = false">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Добавление бизнес-правила</h5>
+                    <h5 class="modal-title" x-text="currentRule.id && editingRule ? 'Редактирование бизнес-правила' : 'Добавление бизнес-правила'"></h5>
                     <button type="button" class="btn-close" @click="showAddRuleModal = false"></button>
                 </div>
                 <div class="modal-body">
@@ -1734,7 +1758,7 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
+    <!-- Bootstrap JS (только для dropdown) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
@@ -1744,13 +1768,14 @@
                 // Активный модуль
                 activeModule: 'dashboard',
                 mobileMenuOpen: false,
+                activeEntityTab: 'requirements',
                 
-                // Данные приложения
+                // Модель данных
                 requirements: [],
                 stakeholders: [],
                 businessRules: [],
-                artifacts: [],
-                traceabilityLinks: [],
+                activities: [],
+                recommendations: [],
                 
                 // Настройки
                 projectName: 'Разработка ERP-системы',
@@ -1758,28 +1783,23 @@
                 autoSave: true,
                 notifications: true,
                 strictnessLevel: 'medium',
+                activeRules: {
+                    D25: true,
+                    D26: true,
+                    H78: true,
+                    I80: true
+                },
+                buildDate: new Date().toLocaleDateString(),
+                lastModifiedDate: new Date().toLocaleDateString(),
                 
-                // Вспомогательные переменные
+                // Модальные окна
                 showAddRequirementModal: false,
                 showAddStakeholderModal: false,
                 showAddRuleModal: false,
+                
+                // Редактирование
                 selectedRequirementId: null,
-                
-                // Поиск и фильтры
-                requirementsSearch: '',
-                filterPriority: '',
-                filterType: '',
-                filterStatus: '',
-                
-                // Проверки и аналитика
-                selectedForCheck: '',
-                selectedForImpact: '',
-                selectedForAcceptance: '',
-                checkResult: { pass: false, message: '', issues: [] },
-                impactAnalysisResult: null,
-                ambiguityCheckText: '',
-                ambiguityResults: [],
-                acceptanceCriteriaText: '',
+                editingRule: false,
                 
                 // Текущие редактируемые объекты
                 currentRequirement: {
@@ -1807,57 +1827,59 @@
                     description: ''
                 },
                 
+                // Поиск и фильтры
+                requirementsSearch: '',
+                filterPriority: '',
+                filterType: '',
+                filterStatus: '',
+                filteredRequirements: [],
+                
+                // Проверки и аналитика
+                selectedForCheck: '',
+                selectedForImpact: '',
+                selectedForAcceptance: '',
+                checkResult: { pass: false, message: '', issues: [] },
+                impactAnalysisResult: null,
+                ambiguityCheckText: '',
+                ambiguityResults: [],
+                acceptanceCriteriaText: '',
+                
                 // Уведомления
                 toastMessage: '',
                 
-                // Вычисляемые свойства
-                get filteredRequirements() {
-                    let filtered = this.requirements;
-                    
-                    if (this.requirementsSearch) {
-                        const search = this.requirementsSearch.toLowerCase();
-                        filtered = filtered.filter(req => 
-                            req.title.toLowerCase().includes(search) ||
-                            req.description.toLowerCase().includes(search) ||
-                            req.id.toLowerCase().includes(search)
-                        );
-                    }
-                    
-                    if (this.filterPriority) {
-                        filtered = filtered.filter(req => req.priority === this.filterPriority);
-                    }
-                    
-                    if (this.filterType) {
-                        filtered = filtered.filter(req => req.type === this.filterType);
-                    }
-                    
-                    if (this.filterStatus) {
-                        filtered = filtered.filter(req => req.status === this.filterStatus);
-                    }
-                    
-                    return filtered;
-                },
-                
-                get problematicRequirements() {
-                    return this.requirements.filter(req => {
-                        const score = this.calculateRequirementScore(req);
-                        return score < 60 || 
-                               !req.acceptanceCriteria || 
-                               req.acceptanceCriteria.trim() === '' ||
-                               req.testability === 'Низкая';
-                    }).slice(0, 3);
-                },
-                
                 // Инициализация
                 init() {
-                    this.loadSampleData();
+                    this.loadData();
+                    this.filterRequirements();
                     this.initCharts();
-                    this.showNotification('Система загружена. Добро пожаловать в Экспертную систему для выработки требований к ПО!');
+                    this.loadRecommendations();
+                    this.showNotification('Система загружена. Добро пожаловать!');
                 },
                 
-                // Загрузка примеров данных для демонстрации
+                // Загрузка данных
+                loadData() {
+                    // Попытка загрузить из localStorage
+                    const savedData = localStorage.getItem('expertSystemData');
+                    if (savedData) {
+                        try {
+                            const data = JSON.parse(savedData);
+                            this.requirements = data.requirements || [];
+                            this.stakeholders = data.stakeholders || [];
+                            this.businessRules = data.businessRules || [];
+                            this.activities = data.activities || [];
+                            this.projectName = data.projectName || 'Разработка ERP-системы';
+                            this.lastModifiedDate = data.lastModifiedDate || new Date().toLocaleDateString();
+                        } catch (e) {
+                            console.error('Ошибка загрузки данных:', e);
+                            this.loadSampleData();
+                        }
+                    } else {
+                        this.loadSampleData();
+                    }
+                },
+                
+                // Загрузка примеров данных
                 loadSampleData() {
-                    // Пример требований
                     this.requirements = [
                         {
                             id: 'FR-001',
@@ -1900,7 +1922,6 @@
                         }
                     ];
                     
-                    // Пример заинтересованных лиц
                     this.stakeholders = [
                         {id: 1, name: 'Иванов А.П.', role: 'Бизнес-аналитик', involvement: 'Высокая'},
                         {id: 2, name: 'Петрова Е.В.', role: 'Архитектор ПО', involvement: 'Средняя'},
@@ -1908,12 +1929,37 @@
                         {id: 4, name: 'Кузнецова О.И.', role: 'Разработчик', involvement: 'Высокая'}
                     ];
                     
-                    // Пример бизнес-правил
                     this.businessRules = [
                         {id: 'BR-001', type: 'Ограничительное правило', description: 'Требование не может быть утверждено без критериев приемки'},
                         {id: 'BR-002', type: 'Активатор операции', description: 'Если требование имеет приоритет "Must", оно должно быть реализовано в первой итерации'},
                         {id: 'BR-003', type: 'Вычисление', description: 'Оценка сложности требования рассчитывается на основе количества затронутых компонентов системы'}
                     ];
+                    
+                    this.activities = [
+                        {type: 'requirement', message: 'Добавлено требование FR-001', timestamp: Date.now() - 7200000},
+                        {type: 'requirement', message: 'Утверждено требование FR-001', timestamp: Date.now() - 86400000},
+                        {type: 'stakeholder', message: 'Добавлен новый заинтересованный', timestamp: Date.now() - 172800000}
+                    ];
+                    
+                    this.saveData();
+                },
+                
+                // Сохранение данных
+                saveData() {
+                    const data = {
+                        requirements: this.requirements,
+                        stakeholders: this.stakeholders,
+                        businessRules: this.businessRules,
+                        activities: this.activities,
+                        projectName: this.projectName,
+                        lastModifiedDate: new Date().toLocaleDateString()
+                    };
+                    
+                    try {
+                        localStorage.setItem('expertSystemData', JSON.stringify(data));
+                    } catch (e) {
+                        console.error('Ошибка сохранения данных:', e);
+                    }
                 },
                 
                 // Расчет оценки качества требований
@@ -1942,7 +1988,22 @@
                     return Math.min(100, score);
                 },
                 
+                get problematicRequirements() {
+                    return this.requirements.filter(req => {
+                        const score = this.calculateRequirementScore(req);
+                        return score < 60 || 
+                               !req.acceptanceCriteria || 
+                               req.acceptanceCriteria.trim() === '' ||
+                               req.testability === 'Низкая';
+                    }).slice(0, 3);
+                },
+                
                 // Методы для работы с требованиями
+                addRequirement() {
+                    this.resetRequirementForm();
+                    this.showAddRequirementModal = true;
+                },
+                
                 editRequirement(id) {
                     const requirement = this.requirements.find(req => req.id === id);
                     if (requirement) {
@@ -1955,7 +2016,10 @@
                 deleteRequirement(id) {
                     if (confirm('Удалить это требование?')) {
                         this.requirements = this.requirements.filter(req => req.id !== id);
+                        this.addActivity('requirement', `Требование ${id} удалено`);
                         this.showNotification(`Требование ${id} удалено`);
+                        this.filterRequirements();
+                        this.saveData();
                     }
                 },
                 
@@ -1970,6 +2034,7 @@
                         const index = this.requirements.findIndex(req => req.id === this.selectedRequirementId);
                         if (index !== -1) {
                             this.requirements[index] = {...this.currentRequirement};
+                            this.addActivity('requirement', `Требование ${this.currentRequirement.id} обновлено`);
                             this.showNotification(`Требование ${this.currentRequirement.id} обновлено`);
                         }
                     } else {
@@ -1981,11 +2046,14 @@
                         
                         // Добавление нового требования
                         this.requirements.push({...this.currentRequirement});
+                        this.addActivity('requirement', `Добавлено требование ${this.currentRequirement.id}`);
                         this.showNotification(`Новое требование ${this.currentRequirement.id} добавлено`);
                     }
                     
                     this.resetRequirementForm();
                     this.showAddRequirementModal = false;
+                    this.filterRequirements();
+                    this.saveData();
                 },
                 
                 resetRequirementForm() {
@@ -2005,22 +2073,35 @@
                     this.selectedRequirementId = null;
                 },
                 
+                generateRequirementId() {
+                    const funcCount = this.requirements.filter(r => r.type === 'Функциональное').length;
+                    const nonFuncCount = this.requirements.filter(r => r.type === 'Нефункциональное').length;
+                    
+                    if (this.currentRequirement.type === 'Функциональное') {
+                        this.currentRequirement.id = `FR-${(funcCount + 1).toString().padStart(3, '0')}`;
+                    } else if (this.currentRequirement.type === 'Нефункциональное') {
+                        this.currentRequirement.id = `NFR-${(nonFuncCount + 1).toString().padStart(3, '0')}`;
+                    } else {
+                        this.currentRequirement.id = `REQ-${(this.requirements.length + 1).toString().padStart(3, '0')}`;
+                    }
+                },
+                
                 changeStatus(id, status) {
                     const requirement = this.requirements.find(req => req.id === id);
                     if (requirement) {
                         requirement.status = status;
+                        this.addActivity('requirement', `Статус требования ${id} изменен на "${status}"`);
                         this.showNotification(`Статус требования ${id} изменен на "${status}"`);
+                        this.saveData();
                     }
                 },
                 
-                clearFilters() {
-                    this.requirementsSearch = '';
-                    this.filterPriority = '';
-                    this.filterType = '';
-                    this.filterStatus = '';
+                // Методы для работы с заинтересованными лицами
+                addStakeholder() {
+                    this.resetStakeholderForm();
+                    this.showAddStakeholderModal = true;
                 },
                 
-                // Методы для работы с заинтересованными лицами
                 editStakeholder(id) {
                     const stakeholder = this.stakeholders.find(s => s.id === id);
                     if (stakeholder) {
@@ -2032,7 +2113,9 @@
                 deleteStakeholder(id) {
                     if (confirm('Удалить это заинтересованное лицо?')) {
                         this.stakeholders = this.stakeholders.filter(s => s.id !== id);
+                        this.addActivity('stakeholder', 'Заинтересованное лицо удалено');
                         this.showNotification('Заинтересованное лицо удалено');
+                        this.saveData();
                     }
                 },
                 
@@ -2047,6 +2130,7 @@
                         const index = this.stakeholders.findIndex(s => s.id === this.currentStakeholder.id);
                         if (index !== -1) {
                             this.stakeholders[index] = {...this.currentStakeholder};
+                            this.addActivity('stakeholder', 'Заинтересованное лицо обновлено');
                             this.showNotification('Заинтересованное лицо обновлено');
                         }
                     } else {
@@ -2058,24 +2142,46 @@
                             ...this.currentStakeholder,
                             id: newId
                         });
+                        this.addActivity('stakeholder', `Добавлено заинтересованное лицо: ${this.currentStakeholder.name}`);
                         this.showNotification('Новое заинтересованное лицо добавлено');
                     }
                     
+                    this.resetStakeholderForm();
+                    this.showAddStakeholderModal = false;
+                    this.saveData();
+                },
+                
+                resetStakeholderForm() {
                     this.currentStakeholder = {
                         id: null,
                         name: '',
                         role: 'Бизнес-аналитик',
                         involvement: 'Средняя'
                     };
-                    this.showAddStakeholderModal = false;
                 },
                 
                 // Методы для работы с бизнес-правилами
+                addRule() {
+                    this.resetRuleForm();
+                    this.editingRule = false;
+                    this.showAddRuleModal = true;
+                },
+                
                 editRule(id) {
                     const rule = this.businessRules.find(r => r.id === id);
                     if (rule) {
                         this.currentRule = {...rule};
+                        this.editingRule = true;
                         this.showAddRuleModal = true;
+                    }
+                },
+                
+                deleteRule(id) {
+                    if (confirm('Удалить это бизнес-правило?')) {
+                        this.businessRules = this.businessRules.filter(r => r.id !== id);
+                        this.addActivity('rule', `Бизнес-правило ${id} удалено`);
+                        this.showNotification(`Бизнес-правило ${id} удалено`);
+                        this.saveData();
                     }
                 },
                 
@@ -2085,24 +2191,75 @@
                         return;
                     }
                     
-                    const existingIndex = this.businessRules.findIndex(r => r.id === this.currentRule.id);
-                    
-                    if (existingIndex !== -1) {
+                    if (this.editingRule) {
                         // Обновление
-                        this.businessRules[existingIndex] = {...this.currentRule};
-                        this.showNotification(`Бизнес-правило ${this.currentRule.id} обновлено`);
+                        const index = this.businessRules.findIndex(r => r.id === this.currentRule.id);
+                        if (index !== -1) {
+                            this.businessRules[index] = {...this.currentRule};
+                            this.addActivity('rule', `Бизнес-правило ${this.currentRule.id} обновлено`);
+                            this.showNotification(`Бизнес-правило ${this.currentRule.id} обновлено`);
+                        }
                     } else {
+                        // Проверка на дубликаты
+                        if (this.businessRules.some(r => r.id === this.currentRule.id)) {
+                            this.showNotification(`Бизнес-правило с ID ${this.currentRule.id} уже существует`);
+                            return;
+                        }
+                        
                         // Добавление нового
                         this.businessRules.push({...this.currentRule});
+                        this.addActivity('rule', `Добавлено бизнес-правило ${this.currentRule.id}`);
                         this.showNotification(`Новое бизнес-правило ${this.currentRule.id} добавлено`);
                     }
                     
+                    this.resetRuleForm();
+                    this.showAddRuleModal = false;
+                    this.saveData();
+                },
+                
+                resetRuleForm() {
                     this.currentRule = {
                         id: '',
                         type: 'Ограничительное правило',
                         description: ''
                     };
-                    this.showAddRuleModal = false;
+                    this.editingRule = false;
+                },
+                
+                // Фильтрация требований
+                filterRequirements() {
+                    let filtered = this.requirements;
+                    
+                    if (this.requirementsSearch) {
+                        const search = this.requirementsSearch.toLowerCase();
+                        filtered = filtered.filter(req => 
+                            req.title.toLowerCase().includes(search) ||
+                            req.description.toLowerCase().includes(search) ||
+                            req.id.toLowerCase().includes(search)
+                        );
+                    }
+                    
+                    if (this.filterPriority) {
+                        filtered = filtered.filter(req => req.priority === this.filterPriority);
+                    }
+                    
+                    if (this.filterType) {
+                        filtered = filtered.filter(req => req.type === this.filterType);
+                    }
+                    
+                    if (this.filterStatus) {
+                        filtered = filtered.filter(req => req.status === this.filterStatus);
+                    }
+                    
+                    this.filteredRequirements = filtered;
+                },
+                
+                clearFilters() {
+                    this.requirementsSearch = '';
+                    this.filterPriority = '';
+                    this.filterType = '';
+                    this.filterStatus = '';
+                    this.filterRequirements();
                 },
                 
                 // Методы для модуля процессов
@@ -2153,6 +2310,7 @@
                     const requirement = this.requirements.find(req => req.id === id);
                     if (requirement) {
                         requirement.priority = newPriority;
+                        this.saveData();
                     }
                 },
                 
@@ -2164,6 +2322,7 @@
                         if (currentIndex < priorities.length - 1) {
                             requirement.priority = priorities[currentIndex + 1];
                             this.showNotification(`Приоритет требования ${id} повышен`);
+                            this.saveData();
                         }
                     }
                 },
@@ -2176,12 +2335,12 @@
                         if (currentIndex > 0) {
                             requirement.priority = priorities[currentIndex - 1];
                             this.showNotification(`Приоритет требования ${id} понижен`);
+                            this.saveData();
                         }
                     }
                 },
                 
                 applyMoSCoW() {
-                    // Простое распределение приоритетов по правилу MoSCoW
                     const total = this.requirements.length;
                     const mustCount = Math.floor(total * 0.6);
                     const shouldCount = Math.floor(total * 0.2);
@@ -2200,16 +2359,15 @@
                     });
                     
                     this.showNotification(`Приоритеты распределены: Must=${mustCount}, Should=${shouldCount}, Could=${couldCount}, Wont=${total - mustCount - shouldCount - couldCount}`);
+                    this.saveData();
                 },
                 
                 runImpactAnalysis() {
                     if (!this.selectedForImpact) return;
                     
-                    // Имитация анализа влияния
                     const requirement = this.requirements.find(req => req.id === this.selectedForImpact);
                     if (!requirement) return;
                     
-                    // Простой алгоритм оценки влияния
                     let affectedCount = 0;
                     let complexity = 'Низкая';
                     let risk = 'Низкий';
@@ -2285,7 +2443,7 @@
 4. Нефункциональные требования
 
 1. ВВЕДЕНИЕ
-Система: Экспертная система для выработки требований к ПО
+Система: ${this.projectName}
 Всего требований: ${this.requirements.length}
 
 2. ФУНКЦИОНАЛЬНЫЕ ТРЕБОВАНИЯ
@@ -2312,25 +2470,27 @@ ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
 
 Сгенерировано автоматически экспертной системой.`;
                     
-                    this.downloadTextFile(srsContent, 'SRS_Документ.txt');
+                    this.downloadTextFile(srsContent, `SRS_${this.projectName}_${new Date().toISOString().split('T')[0]}.txt`);
                     this.showNotification('SRS документ сгенерирован и загружен');
                 },
                 
                 generateRequirementsCatalog() {
-                    const catalog = this.requirements.map(req => 
-                        `${req.id} | ${req.type} | ${req.priority} | ${req.status} | ${req.title}`
-                    ).join('\n');
+                    const catalog = `ID;Тип;Приоритет;Статус;Заголовок
+${this.requirements.map(req => 
+`${req.id};${req.type};${req.priority};${req.status};"${req.title}"`
+).join('\n')}`;
                     
-                    this.downloadTextFile(catalog, 'Каталог_требований.csv');
+                    this.downloadTextFile(catalog, `Каталог_требований_${this.projectName}_${new Date().toISOString().split('T')[0]}.csv`);
                     this.showNotification('Каталог требований сгенерирован и загружен');
                 },
                 
                 generateStakeholdersReport() {
-                    const report = this.stakeholders.map(s => 
-                        `${s.name},${s.role},${s.involvement}`
-                    ).join('\n');
+                    const report = `Имя;Роль;Вовлеченность
+${this.stakeholders.map(s => 
+`${s.name};${s.role};${s.involvement}`
+).join('\n')}`;
                     
-                    this.downloadTextFile(report, 'Отчет_заинтересованные_лица.csv');
+                    this.downloadTextFile(report, `Отчет_заинтересованные_лица_${this.projectName}_${new Date().toISOString().split('T')[0]}.csv`);
                     this.showNotification('Отчет по заинтересованным лицам сгенерирован и загружен');
                 },
                 
@@ -2356,6 +2516,7 @@ ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
                         this.showNotification('Критерии приемки сохранены');
                         this.acceptanceCriteriaText = '';
                         this.selectedForAcceptance = '';
+                        this.saveData();
                     }
                 },
                 
@@ -2385,18 +2546,20 @@ ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
                     }
                 },
                 
-                showMoreRecommendations() {
-                    const recommendations = [
-                        'Проведите анализ влияния для всех требований с высоким приоритетом',
-                        'Создайте глоссарий терминов проекта',
-                        'Назначьте ответственных за каждое требование',
-                        'Проведите сессию приоритизации с заказчиком',
-                        'Создайте прототип для спорных требований',
-                        'Обновите матрицу отслеживаемости',
-                        'Проведите рецензирование требований с разработчиками'
+                loadRecommendations() {
+                    this.recommendations = [
+                        {id: 1, text: 'Проведите рецензирование требований с разработчиками (Правило D38)'},
+                        {id: 2, text: 'Создайте прототип для спорных требований (Правило I80)'},
+                        {id: 3, text: 'Обновите матрицу отслеживаемости (Правило H77)'},
+                        {id: 4, text: 'Проведите анализ влияния для требований с высоким приоритетом'},
+                        {id: 5, text: 'Создайте глоссарий терминов проекта'},
+                        {id: 6, text: 'Назначьте ответственных за каждое требование'}
                     ];
-                    
-                    alert('Дополнительные рекомендации:\n\n' + recommendations.join('\n• '));
+                },
+                
+                showMoreRecommendations() {
+                    const recommendations = this.recommendations.slice(3).map(r => r.text).join('\n• ');
+                    alert('Дополнительные рекомендации:\n\n• ' + recommendations);
                 },
                 
                 // Методы для администрирования
@@ -2405,25 +2568,54 @@ ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
                         requirements: this.requirements,
                         stakeholders: this.stakeholders,
                         businessRules: this.businessRules,
+                        activities: this.activities,
+                        projectName: this.projectName,
+                        lastModifiedDate: this.lastModifiedDate,
                         exportDate: new Date().toISOString()
                     };
                     
                     const dataStr = JSON.stringify(allData, null, 2);
-                    this.downloadTextFile(dataStr, 'expert_system_backup.json');
+                    this.downloadTextFile(dataStr, `expert_system_backup_${new Date().toISOString().split('T')[0]}.json`);
                     this.showNotification('Все данные экспортированы');
                 },
                 
-                importData() {
-                    // В реальном приложении здесь была бы загрузка файла
-                    this.showNotification('Функция импорта данных будет реализована в следующей версии');
+                importData(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            this.requirements = data.requirements || [];
+                            this.stakeholders = data.stakeholders || [];
+                            this.businessRules = data.businessRules || [];
+                            this.activities = data.activities || [];
+                            this.projectName = data.projectName || 'Разработка ERP-системы';
+                            this.lastModifiedDate = data.lastModifiedDate || new Date().toLocaleDateString();
+                            
+                            this.filterRequirements();
+                            this.saveData();
+                            this.showNotification('Данные успешно импортированы');
+                        } catch (error) {
+                            this.showNotification('Ошибка при импорте данных: неверный формат файла');
+                        }
+                    };
+                    reader.readAsText(file);
+                    
+                    // Сброс input файла
+                    event.target.value = '';
                 },
                 
                 resetData() {
                     if (confirm('Вы уверены? Все данные будут удалены.')) {
+                        localStorage.removeItem('expertSystemData');
                         this.requirements = [];
                         this.stakeholders = [];
                         this.businessRules = [];
+                        this.activities = [];
                         this.loadSampleData();
+                        this.filterRequirements();
                         this.showNotification('Данные сброшены, загружены демонстрационные данные');
                     }
                 },
@@ -2439,11 +2631,12 @@ ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
                 },
                 
                 saveSettings() {
-                    // В реальном приложении здесь было бы сохранение в localStorage или на сервер
+                    this.saveData();
                     this.showNotification('Настройки сохранены');
                 },
                 
                 updateRules() {
+                    this.saveData();
                     this.showNotification('Правила экспертной системы обновлены');
                 },
                 
@@ -2457,6 +2650,7 @@ ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
 • Всего требований: ${this.requirements.length}
 • Всего заинтересованных лиц: ${this.stakeholders.length}
 • Всего бизнес-правил: ${this.businessRules.length}
+• Объем данных: ${this.calculateDataSize()} KB
                     `.trim();
                     
                     alert(info);
@@ -2465,24 +2659,15 @@ ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
                 // Вспомогательные методы
                 exportRequirements() {
                     const dataStr = JSON.stringify(this.requirements, null, 2);
-                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                    
-                    const exportFileDefaultName = 'requirements_export.json';
-                    
-                    const linkElement = document.createElement('a');
-                    linkElement.setAttribute('href', dataUri);
-                    linkElement.setAttribute('download', exportFileDefaultName);
-                    linkElement.click();
-                    
+                    this.downloadTextFile(dataStr, `requirements_export_${new Date().toISOString().split('T')[0]}.json`);
                     this.showNotification('Требования экспортированы в JSON');
                 },
                 
                 generateSRSReport() {
-                    this.showNotification('Генерация отчета SRS... Функция будет реализована в полной версии');
+                    this.generateSRS();
                 },
                 
                 runConsistencyCheck() {
-                    // Проверка всех требований на согласованность
                     let issuesCount = 0;
                     
                     this.requirements.forEach(req => {
@@ -2498,23 +2683,51 @@ ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
                     }
                 },
                 
-                generateRequirementId() {
-                    const funcCount = this.requirements.filter(r => r.type === 'Функциональное').length;
-                    const nonFuncCount = this.requirements.filter(r => r.type === 'Нефункциональное').length;
+                addActivity(type, message) {
+                    this.activities.unshift({
+                        type: type,
+                        message: message,
+                        timestamp: Date.now()
+                    });
                     
-                    if (this.currentRequirement.type === 'Функциональное') {
-                        return `FR-${(funcCount + 1).toString().padStart(3, '0')}`;
-                    } else if (this.currentRequirement.type === 'Нефункциональное') {
-                        return `NFR-${(nonFuncCount + 1).toString().padStart(3, '0')}`;
-                    } else {
-                        return `REQ-${(this.requirements.length + 1).toString().padStart(3, '0')}`;
+                    // Ограничиваем историю последними 50 событиями
+                    if (this.activities.length > 50) {
+                        this.activities = this.activities.slice(0, 50);
                     }
                 },
                 
-                watchRequirementType() {
-                    if (!this.currentRequirement.id && this.currentRequirement.type) {
-                        this.currentRequirement.id = this.generateRequirementId();
+                formatDate(timestamp) {
+                    const date = new Date(timestamp);
+                    const now = new Date();
+                    const diff = now - date;
+                    
+                    if (diff < 60000) {
+                        return 'только что';
+                    } else if (diff < 3600000) {
+                        const minutes = Math.floor(diff / 60000);
+                        return `${minutes} ${this.getNoun(minutes, 'минуту', 'минуты', 'минут')} назад`;
+                    } else if (diff < 86400000) {
+                        const hours = Math.floor(diff / 3600000);
+                        return `${hours} ${this.getNoun(hours, 'час', 'часа', 'часов')} назад`;
+                    } else {
+                        return date.toLocaleDateString();
                     }
+                },
+                
+                getNoun(number, one, two, five) {
+                    let n = Math.abs(number);
+                    n %= 100;
+                    if (n >= 5 && n <= 20) {
+                        return five;
+                    }
+                    n %= 10;
+                    if (n === 1) {
+                        return one;
+                    }
+                    if (n >= 2 && n <= 4) {
+                        return two;
+                    }
+                    return five;
                 },
                 
                 showNotification(message) {
