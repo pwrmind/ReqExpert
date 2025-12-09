@@ -1539,7 +1539,7 @@
     <!-- Модальные окна -->
     
     <!-- Модальное окно добавления/редактирования требования -->
-    <div class="modal" x-show="showAddRequirementModal" x-cloak @click.self="showAddRequirementModal = false">
+    <div class="modal" :class="{ 'show': showAddRequirementModal }" x-show="showAddRequirementModal" x-cloak @click.self="showAddRequirementModal = false">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1668,7 +1668,7 @@
     </div>
     
     <!-- Модальное окно для заинтересованных лиц -->
-    <div class="modal" x-show="showAddStakeholderModal" x-cloak @click.self="showAddStakeholderModal = false">
+    <div class="modal" :class="{ 'show': showAddStakeholderModal }" x-show="showAddStakeholderModal" x-cloak @click.self="showAddStakeholderModal = false">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1710,7 +1710,7 @@
     </div>
     
     <!-- Модальное окно для бизнес-правил -->
-    <div class="modal" x-show="showAddRuleModal" x-cloak @click.self="showAddRuleModal = false">
+    <div class="modal" :class="{ 'show': showAddStakeholderModal }" x-show="showAddRuleModal" x-cloak @click.self="showAddRuleModal = false">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
