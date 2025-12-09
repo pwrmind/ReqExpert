@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Экспертная система для выработки требований к ПО v3.0</title>
+    <title>Экспертная система для выработки требований к ПО v3.1</title>
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -237,6 +237,19 @@
             z-index: 1040;
         }
         
+        .expert-rule-card {
+            transition: all 0.2s;
+            border-left: 4px solid #0d6efd;
+        }
+        
+        .expert-rule-card.active {
+            border-left-color: #198754;
+        }
+        
+        .expert-rule-card.inactive {
+            border-left-color: #6c757d;
+        }
+        
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
@@ -265,7 +278,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
                 <i class="fas fa-brain me-2"></i>
-                <span class="d-none d-sm-inline">ЭС для требований ПО v3.0</span>
+                <span class="d-none d-sm-inline">ЭС для требований ПО v3.1</span>
                 <span class="d-inline d-sm-none">ЭС Требования</span>
             </a>
             
@@ -277,7 +290,7 @@
             </button>
             
             <div class="navbar-text text-light d-none d-lg-block">
-                <small>Активный проект: <strong>Разработка ERP-системы</strong></small>
+                <small>Активный проект: <strong x-text="projectName"></strong></small>
             </div>
         </div>
     </nav>
@@ -353,8 +366,8 @@
                             <span class="fw-bold" x-text="businessRules.length"></span>
                         </div>
                         <div class="d-flex justify-content-between small">
-                            <span>Качество требований:</span>
-                            <span class="fw-bold" x-text="calculateQualityScore() + '%'"></span>
+                            <span>Правил ЭС:</span>
+                            <span class="fw-bold" x-text="expertRules.length"></span>
                         </div>
                     </div>
                 </div>
@@ -434,8 +447,8 @@
                         <span class="fw-bold" x-text="businessRules.length"></span>
                     </div>
                     <div class="d-flex justify-content-between small">
-                        <span>Качество требований:</span>
-                        <span class="fw-bold" x-text="calculateQualityScore() + '%'"></span>
+                        <span>Правил ЭС:</span>
+                        <span class="fw-bold" x-text="expertRules.length"></span>
                     </div>
                 </div>
             </div>
@@ -494,10 +507,10 @@
                                 <div class="card-body py-3">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <h6 class="mb-0">Качество</h6>
-                                            <h2 class="mb-0 mt-2" x-text="calculateQualityScore() + '%'"></h2>
+                                            <h6 class="mb-0">Правила ЭС</h6>
+                                            <h2 class="mb-0 mt-2" x-text="expertRules.filter(r => r.active).length + '/' + expertRules.length"></h2>
                                         </div>
-                                        <i class="fas fa-chart-line fa-2x opacity-50"></i>
+                                        <i class="fas fa-cogs fa-2x opacity-50"></i>
                                     </div>
                                 </div>
                             </div>
@@ -514,7 +527,7 @@
                                     <div class="timeline">
                                         <template x-for="(activity, index) in activities.slice(0, 5)" :key="index">
                                             <div class="timeline-item mb-3">
-                                                <div class="timeline-marker" :class="activity.type === 'requirement' ? 'bg-primary' : activity.type === 'stakeholder' ? 'bg-success' : 'bg-info'"></div>
+                                                <div class="timeline-marker" :class="activity.type === 'requirement' ? 'bg-primary' : activity.type === 'stakeholder' ? 'bg-success' : activity.type === 'rule' ? 'bg-info' : 'bg-warning'"></div>
                                                 <div class="timeline-content">
                                                     <div class="small fw-semibold" x-text="activity.message"></div>
                                                     <div class="text-muted small" x-text="formatDate(activity.timestamp)"></div>
@@ -1372,159 +1385,360 @@
                 <div x-show="activeModule === 'admin'" x-transition x-cloak>
                     <h4 class="mb-3"><i class="fas fa-sliders-h me-2"></i>Администрирование системы</h4>
                     
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header">
-                                    <i class="fas fa-database me-1"></i> Управление данными
+                    <ul class="nav nav-tabs mb-3" id="adminTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" :class="{active: activeAdminTab === 'settings'}" @click="activeAdminTab = 'settings'">
+                                <i class="fas fa-cogs me-1"></i> Настройки
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" :class="{active: activeAdminTab === 'expertRules'}" @click="activeAdminTab = 'expertRules'">
+                                <i class="fas fa-shield-alt me-1"></i> Правила ЭС
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" :class="{active: activeAdminTab === 'data'}" @click="activeAdminTab = 'data'">
+                                <i class="fas fa-database me-1"></i> Управление данными
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Вкладка настроек -->
+                    <div x-show="activeAdminTab === 'settings'" x-transition>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-cogs me-1"></i> Настройки системы
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Название проекта</label>
+                                            <input type="text" class="form-control" x-model="projectName" placeholder="Введите название проекта">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Схема идентификаторов требований</label>
+                                            <select class="form-select" x-model="idSchema">
+                                                <option value="FR-XXX">FR-XXX (Функциональные требования)</option>
+                                                <option value="NFR-XXX">NFR-XXX (Нефункциональные требования)</option>
+                                                <option value="REQ-XXX">REQ-XXX (Общие требования)</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="autoSave" x-model="autoSave">
+                                            <label class="form-check-label" for="autoSave">Автосохранение</label>
+                                        </div>
+                                        
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="notifications" x-model="notifications">
+                                            <label class="form-check-label" for="notifications">Уведомления</label>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Уровень строгости проверок</label>
+                                            <select class="form-select" x-model="strictnessLevel">
+                                                <option value="low">Низкий (только основные проверки)</option>
+                                                <option value="medium">Средний (рекомендуется)</option>
+                                                <option value="high">Высокий (все проверки)</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <button class="btn btn-sm btn-primary" @click="saveSettings()">
+                                            <i class="fas fa-save me-1"></i> Сохранить настройки
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <h6>Импорт/Экспорт данных</h6>
-                                        <div class="d-grid gap-2">
-                                            <button class="btn btn-sm btn-outline-primary" @click="exportAllData()">
-                                                <i class="fas fa-download me-1"></i> Экспортировать все данные
-                                            </button>
-                                            <input type="file" id="importFile" class="d-none" accept=".json" @change="importData($event)">
-                                            <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('importFile').click()">
-                                                <i class="fas fa-upload me-1"></i> Импортировать данные
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" @click="resetData()">
-                                                <i class="fas fa-trash me-1"></i> Сбросить данные
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-info-circle me-1"></i> О системе
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <h6>Экспертная система для выработки требований к ПО</h6>
+                                            <p class="small">Версия 3.1</p>
+                                            <p class="small">Система разработана для поддержки полного цикла работы с требованиями к программному обеспечению.</p>
+                                        </div>
+                                        
+                                        <div class="small text-muted">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>Версия интерфейса:</span>
+                                                <span>1.0.0</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>Дата сборки:</span>
+                                                <span x-text="buildDate"></span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>Лицензия:</span>
+                                                <span>MIT</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <hr>
+                                        
+                                        <div class="text-center">
+                                            <button class="btn btn-sm btn-outline-info" @click="showSystemInfo()">
+                                                <i class="fas fa-code me-1"></i> Техническая информация
                                             </button>
                                         </div>
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <h6>Статистика системы</h6>
-                                        <div class="small">
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <span>Всего записей:</span>
-                                                <span class="fw-bold" x-text="requirements.length + stakeholders.length + businessRules.length"></span>
-                                            </div>
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <span>Объем данных:</span>
-                                                <span class="fw-bold" x-text="calculateDataSize() + ' KB'"></span>
-                                            </div>
-                                            <div class="d-flex justify-content-between">
-                                                <span>Дата последнего изменения:</span>
-                                                <span class="fw-bold" x-text="lastModifiedDate"></span>
-                                            </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Вкладка правил экспертной системы -->
+                    <div x-show="activeAdminTab === 'expertRules'" x-transition>
+                        <div class="d-flex justify-content-between mb-3">
+                            <div>
+                                <h5 class="mb-0">Управление правилами экспертной системы</h5>
+                                <small class="text-muted">Добавляйте, редактируйте и управляйте правилами проверки требований</small>
+                            </div>
+                            <button class="btn btn-sm btn-primary" @click="addExpertRule()">
+                                <i class="fas fa-plus me-1"></i> Добавить правило
+                            </button>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-list-check me-1"></i> Список правил
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>ID</th>
+                                                        <th>Название</th>
+                                                        <th>Тип</th>
+                                                        <th>Статус</th>
+                                                        <th>Действия</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template x-for="rule in expertRules" :key="rule.id">
+                                                        <tr>
+                                                            <td>
+                                                                <span class="fw-semibold" x-text="rule.id"></span>
+                                                            </td>
+                                                            <td x-text="rule.name"></td>
+                                                            <td>
+                                                                <span class="badge" :class="{
+                                                                    'bg-primary': rule.type === 'Проверка качества',
+                                                                    'bg-info': rule.type === 'Согласованность',
+                                                                    'bg-warning': rule.type === 'Полнота',
+                                                                    'bg-success': rule.type === 'Структура'
+                                                                }" x-text="rule.type"></span>
+                                                            </td>
+                                                            <td>
+                                                                <div class="form-check form-switch">
+                                                                    <input class="form-check-input" type="checkbox" 
+                                                                           :id="'rule-' + rule.id" 
+                                                                           :checked="rule.active"
+                                                                           @change="toggleExpertRule(rule.id)">
+                                                                    <label class="form-check-label small" :for="'rule-' + rule.id" 
+                                                                           x-text="rule.active ? 'Активно' : 'Неактивно'"></label>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <div class="btn-group btn-group-sm">
+                                                                    <button class="btn btn-outline-primary" @click="editExpertRule(rule.id)">
+                                                                        <i class="fas fa-edit"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-outline-danger" @click="deleteExpertRule(rule.id)">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-outline-info" @click="testExpertRule(rule.id)">
+                                                                        <i class="fas fa-play"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        
+                                        <div x-show="expertRules.length === 0" class="text-center py-5">
+                                            <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">Правила экспертной системы не найдены</p>
+                                            <button class="btn btn-sm btn-primary" @click="addExpertRule()">
+                                                <i class="fas fa-plus me-1"></i> Добавить первое правило
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="card">
-                                <div class="card-header">
-                                    <i class="fas fa-cogs me-1"></i> Настройки системы
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label class="form-label">Название проекта</label>
-                                        <input type="text" class="form-control" x-model="projectName" placeholder="Введите название проекта">
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-chart-pie me-1"></i> Статистика правил
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label">Схема идентификаторов требований</label>
-                                        <select class="form-select" x-model="idSchema">
-                                            <option value="FR-XXX">FR-XXX (Функциональные требования)</option>
-                                            <option value="NFR-XXX">NFR-XXX (Нефункциональные требования)</option>
-                                            <option value="REQ-XXX">REQ-XXX (Общие требования)</option>
-                                        </select>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between small mb-1">
+                                                <span>Всего правил:</span>
+                                                <span class="fw-bold" x-text="expertRules.length"></span>
+                                            </div>
+                                            <div class="d-flex justify-content-between small mb-1">
+                                                <span>Активных:</span>
+                                                <span class="fw-bold text-success" x-text="expertRules.filter(r => r.active).length"></span>
+                                            </div>
+                                            <div class="d-flex justify-content-between small mb-3">
+                                                <span>Неактивных:</span>
+                                                <span class="fw-bold text-secondary" x-text="expertRules.filter(r => !r.active).length"></span>
+                                            </div>
+                                            
+                                            <div class="progress mb-3" style="height: 8px;">
+                                                <div class="progress-bar bg-success" 
+                                                     :style="'width: ' + (expertRules.length > 0 ? (expertRules.filter(r => r.active).length / expertRules.length) * 100 : 0) + '%'"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <h6>Распределение по типам</h6>
+                                            <template x-for="type in getRuleTypes()" :key="type">
+                                                <div class="d-flex justify-content-between small mb-1">
+                                                    <span x-text="type"></span>
+                                                    <span class="fw-bold" x-text="expertRules.filter(r => r.type === type).length"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <button class="btn btn-sm btn-outline-secondary w-100 mb-2" @click="exportExpertRules()">
+                                                <i class="fas fa-download me-1"></i> Экспорт правил
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info w-100" @click="runAllExpertRules()">
+                                                <i class="fas fa-play-circle me-1"></i> Запустить все правила
+                                            </button>
+                                        </div>
                                     </div>
-                                    
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="autoSave" x-model="autoSave">
-                                        <label class="form-check-label" for="autoSave">Автосохранение</label>
-                                    </div>
-                                    
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="notifications" x-model="notifications">
-                                        <label class="form-check-label" for="notifications">Уведомления</label>
-                                    </div>
-                                    
-                                    <button class="btn btn-sm btn-primary" @click="saveSettings()">
-                                        <i class="fas fa-save me-1"></i> Сохранить настройки
-                                    </button>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header">
-                                    <i class="fas fa-shield-alt me-1"></i> Правила экспертной системы
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-lightbulb me-1"></i> Активные правила в работе
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <template x-for="rule in expertRules.filter(r => r.active)" :key="rule.id">
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="card expert-rule-card active">
+                                                        <div class="card-body">
+                                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                <h6 class="card-title mb-0" x-text="rule.name"></h6>
+                                                                <span class="badge bg-success small">Активно</span>
+                                                            </div>
+                                                            <p class="card-text small text-muted mb-2" x-text="rule.description"></p>
+                                                            <div class="small">
+                                                                <div class="d-flex justify-content-between">
+                                                                    <span><i class="fas fa-tag me-1"></i> <span x-text="rule.type"></span></span>
+                                                                    <span><i class="fas fa-code me-1"></i> <span x-text="rule.id"></span></span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <h6>Активные правила</h6>
-                                        <div class="small">
-                                            <div class="form-check mb-1">
-                                                <input class="form-check-input" type="checkbox" id="ruleD25" x-model="activeRules.D25">
-                                                <label class="form-check-label" for="ruleD25">Правило D25: Проверка атомарности требований</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Вкладка управления данными -->
+                    <div x-show="activeAdminTab === 'data'" x-transition>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <i class="fas fa-database me-1"></i> Управление данными
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <h6>Импорт/Экспорт данных</h6>
+                                            <div class="d-grid gap-2">
+                                                <button class="btn btn-sm btn-outline-primary" @click="exportAllData()">
+                                                    <i class="fas fa-download me-1"></i> Экспортировать все данные
+                                                </button>
+                                                <input type="file" id="importFile" class="d-none" accept=".json" @change="importData($event)">
+                                                <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('importFile').click()">
+                                                    <i class="fas fa-upload me-1"></i> Импортировать данные
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @click="resetData()">
+                                                    <i class="fas fa-trash me-1"></i> Сбросить данные
+                                                </button>
                                             </div>
-                                            <div class="form-check mb-1">
-                                                <input class="form-check-input" type="checkbox" id="ruleD26" x-model="activeRules.D26">
-                                                <label class="form-check-label" for="ruleD26">Правило D26: Проверка неоднозначных терминов</label>
-                                            </div>
-                                            <div class="form-check mb-1">
-                                                <input class="form-check-input" type="checkbox" id="ruleH78" x-model="activeRules.H78">
-                                                <label class="form-check-label" for="ruleH78">Правило H78: Критерии приемки обязательны</label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="ruleI80" x-model="activeRules.I80">
-                                                <label class="form-check-label" for="ruleI80">Правило I80: Прототипирование спорных требований</label>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <h6>Статистика системы</h6>
+                                            <div class="small">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span>Всего записей:</span>
+                                                    <span class="fw-bold" x-text="requirements.length + stakeholders.length + businessRules.length + expertRules.length"></span>
+                                                </div>
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span>Объем данных:</span>
+                                                    <span class="fw-bold" x-text="calculateDataSize() + ' KB'"></span>
+                                                </div>
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Дата последнего изменения:</span>
+                                                    <span class="fw-bold" x-text="lastModifiedDate"></span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <h6>Уровень строгости проверок</h6>
-                                        <select class="form-select" x-model="strictnessLevel">
-                                            <option value="low">Низкий (только основные проверки)</option>
-                                            <option value="medium">Средний (рекомендуется)</option>
-                                            <option value="high">Высокий (все проверки)</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <button class="btn btn-sm btn-outline-primary" @click="updateRules()">
-                                        <i class="fas fa-sync me-1"></i> Обновить правила
-                                    </button>
                                 </div>
                             </div>
                             
-                            <div class="card">
-                                <div class="card-header">
-                                    <i class="fas fa-info-circle me-1"></i> О системе
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <h6>Экспертная система для выработки требований к ПО</h6>
-                                        <p class="small">Версия 3.0</p>
-                                        <p class="small">Система разработана для поддержки полного цикла работы с требованиями к программному обеспечению.</p>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-cogs me-1"></i> Расширенные настройки
                                     </div>
-                                    
-                                    <div class="small text-muted">
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span>Версия интерфейса:</span>
-                                            <span>1.0.0</span>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Частота автосохранения (минуты)</label>
+                                            <input type="number" class="form-control" x-model="autoSaveInterval" min="1" max="60">
                                         </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span>Дата сборки:</span>
-                                            <span x-text="buildDate"></span>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Уровень детализации логов</label>
+                                            <select class="form-select" x-model="logLevel">
+                                                <option value="minimal">Минимальный</option>
+                                                <option value="normal">Нормальный</option>
+                                                <option value="detailed">Подробный</option>
+                                                <option value="debug">Отладочный</option>
+                                            </select>
                                         </div>
-                                        <div class="d-flex justify-content-between">
-                                            <span>Лицензия:</span>
-                                            <span>MIT</span>
+                                        
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="enableBackups" x-model="enableBackups">
+                                            <label class="form-check-label" for="enableBackups">Автоматическое резервное копирование</label>
                                         </div>
-                                    </div>
-                                    
-                                    <hr>
-                                    
-                                    <div class="text-center">
-                                        <button class="btn btn-sm btn-outline-info" @click="showSystemInfo()">
-                                            <i class="fas fa-code me-1"></i> Техническая информация
+                                        
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="enableAnalytics" x-model="enableAnalytics">
+                                            <label class="form-check-label" for="enableAnalytics">Сбор анонимной статистики</label>
+                                        </div>
+                                        
+                                        <button class="btn btn-sm btn-primary" @click="saveAdvancedSettings()">
+                                            <i class="fas fa-save me-1"></i> Сохранить настройки
                                         </button>
                                     </div>
                                 </div>
@@ -1745,6 +1959,103 @@
         </div>
     </div>
     
+    <!-- Модальное окно для правил экспертной системы -->
+    <div class="modal" :class="{ 'show': showAddExpertRuleModal }" x-show="showAddExpertRuleModal" x-cloak @click.self="showAddExpertRuleModal = false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" x-text="currentExpertRule.id && editingExpertRule ? 'Редактирование правила экспертной системы' : 'Добавление нового правила экспертной системы'"></h5>
+                    <button type="button" class="btn-close" @click="showAddExpertRuleModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Идентификатор правила</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" x-model="currentExpertRule.id" placeholder="Например: D25">
+                                <button class="btn btn-outline-secondary" type="button" @click="generateExpertRuleId()">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Уникальный идентификатор правила</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Название правила</label>
+                            <input type="text" class="form-control" x-model="currentExpertRule.name" placeholder="Например: Проверка атомарности требований">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Тип правила</label>
+                            <select class="form-select" x-model="currentExpertRule.type">
+                                <option value="Проверка качества">Проверка качества</option>
+                                <option value="Согласованность">Согласованность</option>
+                                <option value="Полнота">Полнота</option>
+                                <option value="Структура">Структура</option>
+                                <option value="Неоднозначность">Неоднозначность</option>
+                                <option value="Тестируемость">Тестируемость</option>
+                                <option value="Приоритизация">Приоритизация</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Статус</label>
+                            <select class="form-select" x-model="currentExpertRule.active">
+                                <option :value="true">Активно</option>
+                                <option :value="false">Неактивно</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Описание правила</label>
+                            <textarea class="form-control" rows="2" x-model="currentExpertRule.description" 
+                                      placeholder="Краткое описание правила и его назначения"></textarea>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Логика проверки (JavaScript)</label>
+                            <textarea class="form-control code-font" rows="6" x-model="currentExpertRule.checkLogic" 
+                                      placeholder="function checkRequirement(requirement) {
+    // Логика проверки требования
+    // Возвращает объект {pass: boolean, message: string, issues: array}
+}"></textarea>
+                            <small class="text-muted">Функция должна возвращать объект с полями: pass (булево), message (строка), issues (массив строк)</small>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Пример использования</label>
+                            <textarea class="form-control code-font" rows="3" x-model="currentExpertRule.example" 
+                                      placeholder="Пример текста требования для проверки"></textarea>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Строгость</label>
+                            <select class="form-select" x-model="currentExpertRule.strictness">
+                                <option value="low">Низкая</option>
+                                <option value="medium">Средняя</option>
+                                <option value="high">Высокая</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Категория</label>
+                            <input type="text" class="form-control" x-model="currentExpertRule.category" placeholder="Например: Качество требований">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="showAddExpertRuleModal = false">Отмена</button>
+                    <button type="button" class="btn btn-primary" @click="saveExpertRule()">
+                        <span x-text="currentExpertRule.id && editingExpertRule ? 'Сохранить' : 'Добавить'"></span>
+                    </button>
+                    <button type="button" class="btn btn-outline-info" @click="testExpertRuleLogic()" x-show="currentExpertRule.checkLogic">
+                        <i class="fas fa-play me-1"></i> Протестировать
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Уведомления -->
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
         <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
@@ -1769,11 +2080,13 @@
                 activeModule: 'dashboard',
                 mobileMenuOpen: false,
                 activeEntityTab: 'requirements',
+                activeAdminTab: 'settings',
                 
                 // Модель данных
                 requirements: [],
                 stakeholders: [],
                 businessRules: [],
+                expertRules: [], // Новый массив для правил экспертной системы
                 activities: [],
                 recommendations: [],
                 
@@ -1783,23 +2096,23 @@
                 autoSave: true,
                 notifications: true,
                 strictnessLevel: 'medium',
-                activeRules: {
-                    D25: true,
-                    D26: true,
-                    H78: true,
-                    I80: true
-                },
                 buildDate: new Date().toLocaleDateString(),
                 lastModifiedDate: new Date().toLocaleDateString(),
+                autoSaveInterval: 5,
+                logLevel: 'normal',
+                enableBackups: true,
+                enableAnalytics: false,
                 
                 // Модальные окна
                 showAddRequirementModal: false,
                 showAddStakeholderModal: false,
                 showAddRuleModal: false,
+                showAddExpertRuleModal: false, // Новое модальное окно для правил экспертной системы
                 
                 // Редактирование
                 selectedRequirementId: null,
                 editingRule: false,
+                editingExpertRule: false, // Флаг редактирования правила экспертной системы
                 
                 // Текущие редактируемые объекты
                 currentRequirement: {
@@ -1825,6 +2138,17 @@
                     id: '',
                     type: 'Ограничительное правило',
                     description: ''
+                },
+                currentExpertRule: { // Новый объект для правил экспертной системы
+                    id: '',
+                    name: '',
+                    type: 'Проверка качества',
+                    description: '',
+                    checkLogic: '',
+                    example: '',
+                    strictness: 'medium',
+                    category: 'Качество требований',
+                    active: true
                 },
                 
                 // Поиск и фильтры
@@ -1866,9 +2190,14 @@
                             this.requirements = data.requirements || [];
                             this.stakeholders = data.stakeholders || [];
                             this.businessRules = data.businessRules || [];
+                            this.expertRules = data.expertRules || []; // Загружаем правила экспертной системы
                             this.activities = data.activities || [];
                             this.projectName = data.projectName || 'Разработка ERP-системы';
                             this.lastModifiedDate = data.lastModifiedDate || new Date().toLocaleDateString();
+                            this.autoSaveInterval = data.autoSaveInterval || 5;
+                            this.logLevel = data.logLevel || 'normal';
+                            this.enableBackups = data.enableBackups !== undefined ? data.enableBackups : true;
+                            this.enableAnalytics = data.enableAnalytics || false;
                         } catch (e) {
                             console.error('Ошибка загрузки данных:', e);
                             this.loadSampleData();
@@ -1935,10 +2264,114 @@
                         {id: 'BR-003', type: 'Вычисление', description: 'Оценка сложности требования рассчитывается на основе количества затронутых компонентов системы'}
                     ];
                     
+                    // Загружаем примеры правил экспертной системы
+                    this.expertRules = [
+                        {
+                            id: 'D25',
+                            name: 'Проверка атомарности требований',
+                            type: 'Структура',
+                            description: 'Требование должно быть атомарным (описывать одну функциональность)',
+                            checkLogic: `function checkRequirement(requirement) {
+    const issues = [];
+    const title = requirement.title || '';
+    const description = requirement.description || '';
+    
+    // Проверка на наличие союзов, указывающих на составное требование
+    const conjunctions = [' и ', ', а также ', ', также ', ', кроме ', ', плюс '];
+    const foundConjunctions = conjunctions.filter(conj => 
+        title.includes(conj) || description.includes(conj)
+    );
+    
+    if (foundConjunctions.length > 0) {
+        issues.push('Требование может быть составным. Рассмотрите разделение на несколько требований.');
+    }
+    
+    // Проверка длины описания
+    if (description.split('.').length > 3) {
+        issues.push('Описание требования слишком длинное и может содержать несколько функциональностей.');
+    }
+    
+    return {
+        pass: issues.length === 0,
+        message: issues.length === 0 ? 'Требование атомарно' : 'Нарушение атомарности требования',
+        issues: issues
+    };
+}`,
+                            example: 'Система должна позволять создавать и редактировать требования',
+                            strictness: 'high',
+                            category: 'Качество требований',
+                            active: true
+                        },
+                        {
+                            id: 'D26',
+                            name: 'Проверка неоднозначных терминов',
+                            type: 'Неоднозначность',
+                            description: 'Проверка на наличие неоднозначных и субъективных терминов',
+                            checkLogic: `function checkRequirement(requirement) {
+    const issues = [];
+    const text = (requirement.title + ' ' + requirement.description).toLowerCase();
+    
+    const ambiguousTerms = [
+        {term: 'быстро', suggestion: 'Заменить на конкретное время (например, "менее 2 секунд")'},
+        {term: 'удобно', suggestion: 'Заменить на конкретные метрики удобства (например, "не более 3 кликов")'},
+        {term: 'иногда', suggestion: 'Заменить на конкретную частоту (например, "в 10% случаев")'},
+        {term: 'часто', suggestion: 'Заменить на конкретную частоту (например, "в 80% случаев")'},
+        {term: 'простой', suggestion: 'Заменить на конкретные критерии (например, "выполняется за 5 минут")'},
+        {term: 'легко', suggestion: 'Заменить на конкретные критерии (например, "обучение занимает 1 час")'}
+    ];
+    
+    const foundTerms = ambiguousTerms.filter(item => text.includes(item.term));
+    
+    foundTerms.forEach(item => {
+        issues.push(\`Неоднозначный термин "\${item.term}". \${item.suggestion}\`);
+    });
+    
+    return {
+        pass: foundTerms.length === 0,
+        message: foundTerms.length === 0 ? 'Неоднозначных терминов не обнаружено' : \`Обнаружено \${foundTerms.length} неоднозначных терминов\`,
+        issues: issues
+    };
+}`,
+                            example: 'Система должна работать быстро и быть удобной для пользователей',
+                            strictness: 'medium',
+                            category: 'Качество требований',
+                            active: true
+                        },
+                        {
+                            id: 'H78',
+                            name: 'Обязательность критериев приемки',
+                            type: 'Полнота',
+                            description: 'Требование должно содержать критерии приемки',
+                            checkLogic: `function checkRequirement(requirement) {
+    const issues = [];
+    
+    if (!requirement.acceptanceCriteria || requirement.acceptanceCriteria.trim() === '') {
+        issues.push('Требование не содержит критериев приемки');
+    } else {
+        // Проверка минимальной длины критериев приемки
+        if (requirement.acceptanceCriteria.length < 20) {
+            issues.push('Критерии приемки слишком кратки. Рекомендуется детализировать.');
+        }
+    }
+    
+    return {
+        pass: issues.length === 0,
+        message: issues.length === 0 ? 'Критерии приемки присутствуют' : 'Проблемы с критериями приемки',
+        issues: issues
+    };
+}`,
+                            example: 'Требование без критериев приемки',
+                            strictness: 'high',
+                            category: 'Полнота требований',
+                            active: true
+                        }
+                    ];
+                    
                     this.activities = [
                         {type: 'requirement', message: 'Добавлено требование FR-001', timestamp: Date.now() - 7200000},
                         {type: 'requirement', message: 'Утверждено требование FR-001', timestamp: Date.now() - 86400000},
-                        {type: 'stakeholder', message: 'Добавлен новый заинтересованный', timestamp: Date.now() - 172800000}
+                        {type: 'stakeholder', message: 'Добавлен новый заинтересованный', timestamp: Date.now() - 172800000},
+                        {type: 'expertRule', message: 'Загружены правила экспертной системы', timestamp: Date.now()}
                     ];
                     
                     this.saveData();
@@ -1950,9 +2383,14 @@
                         requirements: this.requirements,
                         stakeholders: this.stakeholders,
                         businessRules: this.businessRules,
+                        expertRules: this.expertRules, // Сохраняем правила экспертной системы
                         activities: this.activities,
                         projectName: this.projectName,
-                        lastModifiedDate: new Date().toLocaleDateString()
+                        lastModifiedDate: new Date().toLocaleDateString(),
+                        autoSaveInterval: this.autoSaveInterval,
+                        logLevel: this.logLevel,
+                        enableBackups: this.enableBackups,
+                        enableAnalytics: this.enableAnalytics
                     };
                     
                     try {
@@ -2226,6 +2664,205 @@
                     this.editingRule = false;
                 },
                 
+                // Методы для работы с правилами экспертной системы
+                addExpertRule() {
+                    this.resetExpertRuleForm();
+                    this.showAddExpertRuleModal = true;
+                },
+                
+                editExpertRule(id) {
+                    const rule = this.expertRules.find(r => r.id === id);
+                    if (rule) {
+                        this.currentExpertRule = {...rule};
+                        this.editingExpertRule = true;
+                        this.showAddExpertRuleModal = true;
+                    }
+                },
+                
+                deleteExpertRule(id) {
+                    if (confirm('Удалить это правило экспертной системы?')) {
+                        this.expertRules = this.expertRules.filter(r => r.id !== id);
+                        this.addActivity('expertRule', `Правило экспертной системы ${id} удалено`);
+                        this.showNotification(`Правило экспертной системы ${id} удалено`);
+                        this.saveData();
+                    }
+                },
+                
+                saveExpertRule() {
+                    if (!this.currentExpertRule.id || !this.currentExpertRule.name || !this.currentExpertRule.description) {
+                        this.showNotification('Заполните обязательные поля: Идентификатор, Название и Описание');
+                        return;
+                    }
+                    
+                    if (this.editingExpertRule) {
+                        // Обновление существующего правила
+                        const index = this.expertRules.findIndex(r => r.id === this.currentExpertRule.id);
+                        if (index !== -1) {
+                            this.expertRules[index] = {...this.currentExpertRule};
+                            this.addActivity('expertRule', `Правило экспертной системы ${this.currentExpertRule.id} обновлено`);
+                            this.showNotification(`Правило экспертной системы ${this.currentExpertRule.id} обновлено`);
+                        }
+                    } else {
+                        // Проверка на дубликаты
+                        if (this.expertRules.some(r => r.id === this.currentExpertRule.id)) {
+                            this.showNotification(`Правило с ID ${this.currentExpertRule.id} уже существует`);
+                            return;
+                        }
+                        
+                        // Добавление нового правила
+                        this.expertRules.push({...this.currentExpertRule});
+                        this.addActivity('expertRule', `Добавлено правило экспертной системы ${this.currentExpertRule.id}`);
+                        this.showNotification(`Новое правило экспертной системы ${this.currentExpertRule.id} добавлено`);
+                    }
+                    
+                    this.resetExpertRuleForm();
+                    this.showAddExpertRuleModal = false;
+                    this.saveData();
+                },
+                
+                resetExpertRuleForm() {
+                    this.currentExpertRule = {
+                        id: '',
+                        name: '',
+                        type: 'Проверка качества',
+                        description: '',
+                        checkLogic: '',
+                        example: '',
+                        strictness: 'medium',
+                        category: 'Качество требований',
+                        active: true
+                    };
+                    this.editingExpertRule = false;
+                },
+                
+                generateExpertRuleId() {
+                    // Генерация ID правила в формате XNN, где X - буква, NN - число
+                    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+                    const randomNumber = Math.floor(Math.random() * 99) + 1;
+                    this.currentExpertRule.id = `${randomLetter}${randomNumber}`;
+                },
+                
+                toggleExpertRule(id) {
+                    const rule = this.expertRules.find(r => r.id === id);
+                    if (rule) {
+                        rule.active = !rule.active;
+                        this.addActivity('expertRule', `Правило ${id} ${rule.active ? 'активировано' : 'деактивировано'}`);
+                        this.showNotification(`Правило ${id} ${rule.active ? 'активировано' : 'деактивировано'}`);
+                        this.saveData();
+                    }
+                },
+                
+                testExpertRule(id) {
+                    const rule = this.expertRules.find(r => r.id === id);
+                    if (!rule || !rule.checkLogic) {
+                        this.showNotification('Правило не найдено или не содержит логики проверки');
+                        return;
+                    }
+                    
+                    // Выполняем логику проверки на примере
+                    try {
+                        const checkFunction = eval(`(${rule.checkLogic})`);
+                        const testRequirement = {
+                            id: 'TEST-001',
+                            title: rule.example || 'Пример требования для тестирования',
+                            description: 'Это тестовое требование для проверки правила',
+                            acceptanceCriteria: 'Критерии приемки тестового требования'
+                        };
+                        
+                        const result = checkFunction(testRequirement);
+                        
+                        alert(`Результат тестирования правила "${rule.name}":\n\n` +
+                              `Статус: ${result.pass ? 'Пройдено' : 'Не пройдено'}\n` +
+                              `Сообщение: ${result.message}\n` +
+                              (result.issues && result.issues.length > 0 ? 
+                               `Проблемы:\n${result.issues.map(issue => `• ${issue}`).join('\n')}` : 
+                               'Проблем не обнаружено'));
+                    } catch (error) {
+                        this.showNotification(`Ошибка выполнения правила: ${error.message}`);
+                    }
+                },
+                
+                testExpertRuleLogic() {
+                    if (!this.currentExpertRule.checkLogic) {
+                        this.showNotification('Введите логику проверки для тестирования');
+                        return;
+                    }
+                    
+                    try {
+                        const checkFunction = eval(`(${this.currentExpertRule.checkLogic})`);
+                        const testRequirement = {
+                            id: 'TEST-001',
+                            title: this.currentExpertRule.example || 'Пример требования для тестирования',
+                            description: 'Это тестовое требование для проверки правила',
+                            acceptanceCriteria: 'Критерии приемки тестового требования'
+                        };
+                        
+                        const result = checkFunction(testRequirement);
+                        
+                        alert(`Результат тестирования:\n\n` +
+                              `Статус: ${result.pass ? 'Пройдено' : 'Не пройдено'}\n` +
+                              `Сообщение: ${result.message}\n` +
+                              (result.issues && result.issues.length > 0 ? 
+                               `Проблемы:\n${result.issues.map(issue => `• ${issue}`).join('\n')}` : 
+                               'Проблем не обнаружено'));
+                    } catch (error) {
+                        alert(`Ошибка выполнения правила:\n${error.message}`);
+                    }
+                },
+                
+                runAllExpertRules() {
+                    if (this.expertRules.length === 0) {
+                        this.showNotification('Нет правил для выполнения');
+                        return;
+                    }
+                    
+                    const activeRules = this.expertRules.filter(r => r.active);
+                    if (activeRules.length === 0) {
+                        this.showNotification('Нет активных правил для выполнения');
+                        return;
+                    }
+                    
+                    let totalChecked = 0;
+                    let totalIssues = 0;
+                    
+                    // Выполняем все активные правила для всех требований
+                    this.requirements.forEach(requirement => {
+                        activeRules.forEach(rule => {
+                            if (rule.checkLogic) {
+                                try {
+                                    const checkFunction = eval(`(${rule.checkLogic})`);
+                                    const result = checkFunction(requirement);
+                                    
+                                    if (result.issues && result.issues.length > 0) {
+                                        totalIssues += result.issues.length;
+                                    }
+                                    
+                                    totalChecked++;
+                                } catch (error) {
+                                    console.error(`Ошибка выполнения правила ${rule.id}:`, error);
+                                }
+                            }
+                        });
+                    });
+                    
+                    this.showNotification(`Проверка завершена. Проверено ${totalChecked} правил, обнаружено ${totalIssues} проблем`);
+                },
+                
+                exportExpertRules() {
+                    const dataStr = JSON.stringify(this.expertRules, null, 2);
+                    this.downloadTextFile(dataStr, `expert_rules_export_${new Date().toISOString().split('T')[0]}.json`);
+                    this.showNotification('Правила экспертной системы экспортированы');
+                },
+                
+                getRuleTypes() {
+                    const types = new Set();
+                    this.expertRules.forEach(rule => {
+                        types.add(rule.type);
+                    });
+                    return Array.from(types);
+                },
+                
                 // Фильтрация требований
                 filterRequirements() {
                     let filtered = this.requirements;
@@ -2271,29 +2908,23 @@
                     
                     const issues = [];
                     
-                    // Проверка по правилу D25
-                    if (!requirement.acceptanceCriteria || requirement.acceptanceCriteria.trim() === '') {
-                        issues.push('Отсутствуют критерии приемки (нарушение правила H78)');
-                    }
-                    
-                    if (!requirement.source || requirement.source.trim() === '') {
-                        issues.push('Не указан источник требования');
-                    }
-                    
-                    if (requirement.testability === 'Низкая') {
-                        issues.push('Низкая тестируемость требования');
-                    }
-                    
-                    // Проверка на неоднозначные термины (Правило D26)
-                    const ambiguousTerms = ['быстро', 'удобно', 'иногда', 'часто', 'простой', 'сложный', 'легко', 'тяжело'];
-                    const foundTerms = ambiguousTerms.filter(term => 
-                        requirement.title.toLowerCase().includes(term) || 
-                        requirement.description.toLowerCase().includes(term)
-                    );
-                    
-                    if (foundTerms.length > 0) {
-                        issues.push(`Обнаружены неоднозначные термины: ${foundTerms.join(', ')} (нарушение правила D26)`);
-                    }
+                    // Запускаем активные правила экспертной системы
+                    const activeRules = this.expertRules.filter(r => r.active);
+                    activeRules.forEach(rule => {
+                        if (rule.checkLogic) {
+                            try {
+                                const checkFunction = eval(`(${rule.checkLogic})`);
+                                const result = checkFunction(requirement);
+                                
+                                if (result.issues && result.issues.length > 0) {
+                                    issues.push(...result.issues.map(issue => `${rule.id}: ${issue}`));
+                                }
+                            } catch (error) {
+                                console.error(`Ошибка выполнения правила ${rule.id}:`, error);
+                                issues.push(`Ошибка выполнения правила ${rule.id}: ${error.message}`);
+                            }
+                        }
+                    });
                     
                     this.checkResult = {
                         pass: issues.length === 0,
@@ -2441,10 +3072,12 @@
 2. Общее описание
 3. Функциональные требования
 4. Нефункциональные требования
+5. Правила экспертной системы
 
 1. ВВЕДЕНИЕ
 Система: ${this.projectName}
 Всего требований: ${this.requirements.length}
+Активных правил экспертной системы: ${this.expertRules.filter(r => r.active).length}
 
 2. ФУНКЦИОНАЛЬНЫЕ ТРЕБОВАНИЯ
 ${this.requirements.filter(req => req.type === 'Функциональное').map(req => 
@@ -2467,6 +3100,9 @@ ${this.stakeholders.map(s => `${s.name} (${s.role})`).join('\n')}
 
 5. БИЗНЕС-ПРАВИЛА
 ${this.businessRules.map(r => `${r.id}: ${r.description}`).join('\n')}
+
+6. ПРАВИЛА ЭКСПЕРТНОЙ СИСТЕМЫ
+${this.expertRules.filter(r => r.active).map(r => `${r.id} (${r.type}): ${r.name}`).join('\n')}
 
 Сгенерировано автоматически экспертной системой.`;
                     
@@ -2568,9 +3204,14 @@ ${this.stakeholders.map(s =>
                         requirements: this.requirements,
                         stakeholders: this.stakeholders,
                         businessRules: this.businessRules,
+                        expertRules: this.expertRules,
                         activities: this.activities,
                         projectName: this.projectName,
                         lastModifiedDate: this.lastModifiedDate,
+                        autoSaveInterval: this.autoSaveInterval,
+                        logLevel: this.logLevel,
+                        enableBackups: this.enableBackups,
+                        enableAnalytics: this.enableAnalytics,
                         exportDate: new Date().toISOString()
                     };
                     
@@ -2590,9 +3231,14 @@ ${this.stakeholders.map(s =>
                             this.requirements = data.requirements || [];
                             this.stakeholders = data.stakeholders || [];
                             this.businessRules = data.businessRules || [];
+                            this.expertRules = data.expertRules || [];
                             this.activities = data.activities || [];
                             this.projectName = data.projectName || 'Разработка ERP-системы';
                             this.lastModifiedDate = data.lastModifiedDate || new Date().toLocaleDateString();
+                            this.autoSaveInterval = data.autoSaveInterval || 5;
+                            this.logLevel = data.logLevel || 'normal';
+                            this.enableBackups = data.enableBackups !== undefined ? data.enableBackups : true;
+                            this.enableAnalytics = data.enableAnalytics || false;
                             
                             this.filterRequirements();
                             this.saveData();
@@ -2613,6 +3259,7 @@ ${this.stakeholders.map(s =>
                         this.requirements = [];
                         this.stakeholders = [];
                         this.businessRules = [];
+                        this.expertRules = [];
                         this.activities = [];
                         this.loadSampleData();
                         this.filterRequirements();
@@ -2624,7 +3271,8 @@ ${this.stakeholders.map(s =>
                     const dataStr = JSON.stringify({
                         requirements: this.requirements,
                         stakeholders: this.stakeholders,
-                        businessRules: this.businessRules
+                        businessRules: this.businessRules,
+                        expertRules: this.expertRules
                     });
                     
                     return (dataStr.length / 1024).toFixed(2);
@@ -2635,9 +3283,9 @@ ${this.stakeholders.map(s =>
                     this.showNotification('Настройки сохранены');
                 },
                 
-                updateRules() {
+                saveAdvancedSettings() {
                     this.saveData();
-                    this.showNotification('Правила экспертной системы обновлены');
+                    this.showNotification('Расширенные настройки сохранены');
                 },
                 
                 showSystemInfo() {
@@ -2650,6 +3298,8 @@ ${this.stakeholders.map(s =>
 • Всего требований: ${this.requirements.length}
 • Всего заинтересованных лиц: ${this.stakeholders.length}
 • Всего бизнес-правил: ${this.businessRules.length}
+• Всего правил экспертной системы: ${this.expertRules.length}
+• Активных правил: ${this.expertRules.filter(r => r.active).length}
 • Объем данных: ${this.calculateDataSize()} KB
                     `.trim();
                     
@@ -2758,8 +3408,16 @@ ${this.stakeholders.map(s =>
                     });
                     
                     // Рендерим простые графики с помощью HTML
-                    document.getElementById('requirementsChart').innerHTML = this.createChartHTML(typeCounts, ['Функциональное', 'Нефункциональное', 'Бизнес-требование', 'Пользовательское'], 'Типы требований');
-                    document.getElementById('priorityChart').innerHTML = this.createChartHTML(priorityCounts, ['Must', 'Should', 'Could', 'Wont'], 'Приоритеты');
+                    const requirementsChartEl = document.getElementById('requirementsChart');
+                    const priorityChartEl = document.getElementById('priorityChart');
+                    
+                    if (requirementsChartEl) {
+                        requirementsChartEl.innerHTML = this.createChartHTML(typeCounts, ['Функциональное', 'Нефункциональное', 'Бизнес-требование', 'Пользовательское'], 'Типы требований');
+                    }
+                    
+                    if (priorityChartEl) {
+                        priorityChartEl.innerHTML = this.createChartHTML(priorityCounts, ['Must', 'Should', 'Could', 'Wont'], 'Приоритеты');
+                    }
                 },
                 
                 createChartHTML(data, labels, title) {
